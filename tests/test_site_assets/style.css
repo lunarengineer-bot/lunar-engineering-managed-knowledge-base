@@ -1,0 +1,104 @@
+body{
+    /* background-color: #DBEFF7; */
+    background-image: url('regolith.jpeg');
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: cover;
+}
+
+a{
+    text-decoration: none;
+    color: #DBEFF7;
+    font-size: 3rem;
+}
+
+a:hover{
+    color: #000;
+}
+
+button:hover{
+    transition-duration: 0.4s;
+    background-color:gray;
+    color: #000;
+}
+
+.sideLinks{
+    width: auto;
+    position: absolute;
+    justify-content: center;
+    margin-left: 40%;
+    top: 50%;
+    transform: translateY(-50%);
+    /* color: #DBEFF7; */
+    /* display: inline-block; */
+}
+
+button{
+    background-color: #000;
+    color: #DBEFF7;
+    /* padding: 2rem; */
+    text-align: center;
+    font-size: large;
+    align-items: center;
+    margin: 2rem 0;
+    display: block;
+    width: 100%;
+    border-radius: 10px;
+}
+
+.glow-on-hover {
+    border: none;
+    outline: none;
+    /* color: #fff; */
+    /* background: #111; */
+    /* cursor: pointer; */
+    position: relative;
+    z-index: 0;
+    border-radius: 10rem;
+}
+
+.glow-on-hover:before {
+    content: '';
+    background: linear-gradient(45deg, #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+    position: absolute;
+    top: -2px;
+    left:-2px;
+    background-size: 400%;
+    z-index: -1;
+    filter: blur(5px);
+    width: calc(100% + 4px);
+    height: calc(100% + 4px);
+    animation: glowing 20s linear infinite;
+    opacity: 0;
+    transition: opacity .3s ease-in-out;
+    
+}
+
+.glow-on-hover:active {
+    color: #DBEFF7;
+}
+
+.glow-on-hover:active:after {
+    background: transparent;
+}
+
+.glow-on-hover:hover:before {
+    opacity: 1;
+}
+
+.glow-on-hover:after {
+    z-index: -1;
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    /* background: #111; */
+    left: 0;
+    top: 0;
+}
+
+@keyframes glowing {
+    0% { background-position: 0 0; }
+    50% { background-position: 400% 0; }
+    100% { background-position: 0 0; }
+}

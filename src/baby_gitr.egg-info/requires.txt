@@ -1,0 +1,15 @@
+GitPython==3.1.27
+
+[test]
+tox==3.25.0
+pytest==7.1.2
+flake8==4.0.1
+flake8-html==0.4.2
+coverage==6.4.1
+mypy==0.961
+bandit==1.7.4
+black==22.3.0
+lxml==4.9.0
+sphinx==5.0.2
+nbsphinx==0.8.9
+myst-parser==0.18.0

@@ -1,0 +1,38 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
+// https://github.com/microsoft/vscode-dev-containers/tree/v0.238.0/containers/docker-existing-dockerfile
+{
+	"name": "Existing Dockerfile",
+
+	// Sets the run context to one level up instead of the .devcontainer folder.
+	"context": "..",
+
+	// Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
+	"dockerFile": "../Dockerfile",
+
+	// Update this
+	"settings": {
+		"python.defaultInterpreterPath": "python3",
+	},
+
+	// Declare extensions
+	"extensions": [
+		"ms-python.python",
+		"be5invis.toml"
+	],
+
+	// Uncomment the next line to run commands after the container is created - for example installing curl.
+	"postCreateCommand": "pip install -e .[test] && mkdir -p /project/reports/ && cp tests/index.html /project/reports/index.html && python3 -m http.server 8090 --directory=/project/reports",
+
+	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
+	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+
+	"mounts": [
+		// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
+		// "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+		"source=babygitrproject,target=/project,type=volume",
+		"source=babygitrextensions,target=/root/.vscode-server/extensions,type=volume"
+	],
+
+	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
+	// "remoteUser": "vscode"
+}
