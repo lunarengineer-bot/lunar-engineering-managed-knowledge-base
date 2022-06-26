@@ -1,13 +1,14 @@
 """Set up auto documentation build."""
-import babygitr
+
+from importlib import metadata
 # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#module-sphinx.ext.autodoc
 # sphinx.ext.autodoc
-
-project = babygitr.__name__
-author = 
-copyright = 
-version = babygitr.__version__
-release = 
+babygitr_metadata = metadata.metadata('babygitr')
+project = babygitr_metadata['Name']
+author = babygitr_metadata['Author']
+copyright = babygitr_metadata['Copyright']
+version = babygitr_metadata['Version']
+release = babygitr_metadata['Version']
 extensions = ['autodoc', 'myst_parser', 'nbsphinx']
 source_suffix = {
     '.rst': 'restructuredtext',
@@ -16,42 +17,32 @@ source_suffix = {
     '.ipynb': 'jupyter'
 }
 source_encoding = 'utf-8-sig'
+templates_path = ['_templates']
+html_static_path = ['_static']
 # Do I need to dork with this?
 # source_parsers = {'.md': 'recommonmark.parser.CommonMarkParser'}
 root_doc = 'index'
 
-html_theme = https://www.sphinx-doc.org/en/master/usage/theming.html
-html_theme_options = theme specific https://www.sphinx-doc.org/en/master/usage/theming.html#builtin-themes
+html_theme = 'alabaster'
+html_theme_options = {
+    'logo': 'logo.png',
+    'github_user': 'bitprophet',
+    'github_repo': 'alabaster',
+    'description': babygitr_metadata['Description'],
+    'fixed_sidebar': True
+}
+# html_style = optional path to style.csvv
 
-html_style = optional path to style.csvv
-
-
-html_sidebars
-"""
-Builtin sidebar templates that can be rendered are:
-
-    localtoc.html – a fine-grained table of contents of the current document
-
-    globaltoc.html – a coarse-grained table of contents for the whole documentation set, collapsed
-
-    relations.html – two links to the previous and next documents
-
-    sourcelink.html – a link to the source of the current document, if enabled in html_show_sourcelink
-
-    searchbox.html – the “quick search” box
-
-Example:
 
 html_sidebars = {
-   '**': ['globaltoc.html', 'sourcelink.html', 'searchbox.html'],
-   'using/windows': ['windowssidebar.html', 'searchbox.html'],
+    '**': ['globaltoc.html', 'sourcelink.html', 'searchbox.html']
+    #    'using/windows': ['windowssidebar.html', 'searchbox.html'],
 }
 
-w"""
-html_show_copyright
-html_math_renderer
+# html_show_copyright
+# html_math_renderer
 
-man_pages = [
-    (root_doc, 'test', u'test Documentation',
-     [author], 1)
-]
+# man_pages = [
+#     (root_doc, 'test', u'test Documentation',
+#      [author], 1)
+# ]

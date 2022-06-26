@@ -11,17 +11,18 @@
 
 	// Update this
 	"settings": {
-		"python.defaultInterpreterPath": "python3",
+		"python.defaultInterpreterPath": "python3"
 	},
 
 	// Declare extensions
 	"extensions": [
 		"ms-python.python",
-		"be5invis.toml"
+		"be5invis.toml",
+		"yzane.markdown-pdf"
 	],
 
 	// Uncomment the next line to run commands after the container is created - for example installing curl.
-	"postCreateCommand": "pip install -e .[test] && mkdir -p /project/reports/ && cp tests/index.html /project/reports/index.html && python3 -m http.server 8090 --directory=/project/reports",
+	"postCreateCommand": "pip install -e .[test] && mkdir -p /project/reports/ && cp tests/test_site_assets/* /project/reports/ && python3 -m http.server 8090 --directory=/project/reports",
 
 	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
 	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
@@ -30,9 +31,13 @@
 		// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
 		// "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
 		"source=babygitrproject,target=/project,type=volume",
-		"source=babygitrextensions,target=/root/.vscode-server/extensions,type=volume"
+		"source=babygitrextensions,target=/root/.vscode-server/extensions,type=volume",
+		"source=babygitrsecrets,target=/babygitrsecrets,type=volume"
 	],
 
 	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
 	// "remoteUser": "vscode"
+
+	// These values are set to drive the testing suite.
+	"containerEnv": { "FLIT_ROOT_INSTALL": "1" }
 }
