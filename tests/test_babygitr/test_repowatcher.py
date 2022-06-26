@@ -16,14 +16,15 @@ test_cases = [
 
 @pytest.mark.usefixtures("test_dir")
 @pytest.mark.parametrize("repo", test_cases)
-def test_happy_path_make_repo(repo, test_dir):
+def test_happy_path_make_repo(repo: str, test_dir: str):
+    """Test make_repo happy path."""
     br.make_repo(f"{test_dir}/{repo}")
 
 
 test_cases = [
     # Obviously bad value
     (".mit", Exception, "BabyGitr Error: Bad local repo path"),
-    ("nonexistent/older/.git", Exception, "BabyGitr Error: Bad local repo path"),
+    ("nonexistent/folder/.git", Exception, "BabyGitr Error: Bad local repo path"),
 ]
 
 
