@@ -9,7 +9,7 @@ author = babygitr_metadata['Author']
 copyright = babygitr_metadata['Copyright']
 version = babygitr_metadata['Version']
 release = babygitr_metadata['Version']
-extensions = ['autodoc', 'myst_parser', 'nbsphinx']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage', 'sphinx.ext.napoleon', 'myst_parser', 'nbsphinx']
 source_suffix = {
     '.rst': 'restructuredtext',
     '.txt': 'markdown',

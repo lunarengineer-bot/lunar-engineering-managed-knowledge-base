@@ -37,7 +37,4 @@
 
 	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
 	// "remoteUser": "vscode"
-
-	// These values are set to drive the testing suite.
-	"containerEnv": { "FLIT_ROOT_INSTALL": "1" }
 }

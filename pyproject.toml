@@ -14,26 +14,36 @@ license = {file = "LICENSE"}
 classifiers = [
     "Programming Language :: Python :: 3",
 ]
-dependencies = [
-    "GitPython==3.1.27",
-]
 dynamic = ["version", "readme"]
+
+dependencies = ["GitPython==3.1.27"]
 
 [tool.setuptools.dynamic]
 version = {file = "VERSION"}
 readme = {file = "README.md"}
 
+
 [project.optional-dependencies]
 test = [
+    # Packaging
     "tox==3.25.0",
+    "wheel==0.37.1",
+    # Pytest
     "pytest==7.1.2",
+    "pytest-cov==3.0.0",
+    "pytest-html==3.1.1",
+    # "coverage==6.4.1",
+    # Flake
     "flake8==4.0.1",
     "flake8-html==0.4.2",
-    "coverage==6.4.1",
+    # Mypy
     "mypy==0.961",
-    "bandit==1.7.4",
-    "black==22.3.0",
     "lxml==4.9.0",
+    # Bandit
+    "bandit==1.7.4",
+    # Black
+    "black==22.3.0",
+    # Sphinx
     "sphinx==5.0.2",
     "autodoc==0.5.0",
     "nbsphinx==0.8.9",
