@@ -4,10 +4,11 @@ This uses functionality which exists in GitPython
 https://gitpython.readthedocs.io/en/stable/tutorial.html
 """
 import logging
-import time
-from git import NoSuchPathError, Repo
-from git.exc import InvalidGitRepositoryError
-from typing import Dict
+import pygit2
+from babygitr import _error as b_e
+# from git import NoSuchPathError, Repo
+from schema import Schema, Use
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -15,18 +16,144 @@ __SYNC_FREQUENCY__ = 0
 __LOG_FREQUENCY__ = 0
 
 
-def parse_cli() -> Dict[str, str]:
-    """Parses command line input.
+def _remote_exists(remote: str) -> str:
+    """Return True if remote exists and can be accessed.
 
-    This tears apart the command line input to return a mapping
-    of the input structure.
+    Parameters
+    ----------
+    remote: str
+        A string representing the path to a remote repository.
 
     Returns
     -------
-    config_dict: Dict[str, str]
-        A configuration dictionary for a BabyGitr object.
+    remote: str
+        A validated string representing the path to a remote.
+
+    Examples
+    --------
+    >>> import pytest
+    >>> from babygitr._error import BabyGitrBaseException
+    >>> with pytest.raises(BabyGitrBaseException, match='Unable to connect'):
+    ...     _remote_exists('/stupidexample')
     """
-    raise NotImplementedError
+    # Can git connect to this as a remote?
+    _remote = pygit2.discover_repository(remote)
+    if _remote is None:
+        raise b_e.BabyGitrBaseException(
+            f'Unable to connect to remote {_remote}'
+            )
+    return _remote
+
+
+def init_repo(
+    local_path: str,
+    branch: str = 'main',
+    remote_path: Optional[str] = None,
+) -> pygit2.Repository:
+    """Create a local repository.
+
+    This does one of two things; if it's given a `remote_path` then
+    it will attempt to clone that repository down, else it will create
+    an empty repository at the local location.
+
+    This will also explode gently, letting you know if issues
+    popped up.
+
+    Parameters
+    ----------
+    local_path: str
+        The local repository path.
+    branch: str
+        An optional branch to checkout to.
+    remote_path: Optional[str] = None
+        An optional remote url.
+
+    Returns
+    -------
+    local_repo: Repo
+        This is a repository object that can be used to control a
+        local git repository.
+
+    Examples
+    --------
+    This is a simple example showcasing how to work with a local
+    directory. (Just, don't use the temporary directory for reals.)
+
+    >>> from tempfile import TemporaryDirectory
+    >>> with TemporaryDirectory() as t:
+    ...     local_repo = init_repo(f'{t}/.git', branch='test')
+    >>> type(local_repo)
+    <class 'pygit2.repository.Repository'>
+    >>> list(local_repo.branches)
+
+    This is an example showcasing how to use with a 'local remote'
+    >>> with TemporaryDirectory() as t:
+    ...     remote_repo = init_repo(f'{t}/remote/.git', branch='test')
+    ...     local_repo = init_repo(
+    ...         local_path=f'{t}/local/.git',
+    ...         remote_path=f'{t}/remote/.git',
+    ...         branch='main',
+    ...     )
+    """
+    if remote_path is not None:
+        # This validates the repo exists and can be connected to.
+        remote_path = Schema(Use(_remote_exists)).validate(remote_path)
+        repo = pygit2.clone_repository(
+            url=remote_path,
+            path=local_path,
+            checkout_branch=branch
+        )
+        logger.info(f"Connected to remote: {remote_path}")
+    else:
+        logger.warn("No remote assigned. I'll still babysit your work!")
+        repo = pygit2.init_repository(
+            path=local_path,
+        )
+        # https://www.pygit2.org/recipes/git-commit.html
+        # Add all the files we're going to watch to start.
+        index = repo.index
+        # Just add *everything*
+        index.add_all()
+        # Then write it to the index.
+        index.write()
+        ref = "HEAD"
+        message = "Initial commit"
+        tree = index.write_tree()
+        parents = []
+        author = pygit2.Signature('Timothy David Luna', 'timmothy.d.luna@gmail.com')
+        committer = pygit2.Signature('BabyGitr', 'babygitr@norealmail.com')
+        repo.create_commit(ref, author, committer, message, tree, parents)
+    return repo
+
+
+def set_remote(local_repo, remote_name: str = 'knowledge_base') -> None:
+    """Set the remote repository.
+
+    This sets the connection to the remote. If the remote does not
+    exist it will attempt to create the remote. If it cannot create
+    the remote then it will die a tragic death.
+
+    Parameters
+    ----------
+    local_repo: Repo
+        This is a git repository instance.
+    remote_project: str
+        This is the path to the remote.
+    **kwargs: Any
+        These are keyword arguments unpacked into create_remote
+    """
+    raise Exception("This is up next!")
+    # try:
+    #     remote = local_repo.remote(remote_name)
+    # except ValueError as e:
+    #     # This is *most likely* because the remote doesn't exist.
+    #     remote = None
+    # if remote is None:
+    #     local_repo.create_remote(
+    #         name='',
+    #         url='',
+    #         **kwargs
+    #     )
 
 
 def authenticate_with_repo():
@@ -39,91 +166,14 @@ def authenticate_with_repo():
     raise NotImplementedError
 
 
-def make_repo(local_path: str = ".git") -> Repo:
-    """Create a local repository.
-
-    This checks for a local repository folder and, if it doesn't
-    exist, makes it. It then runs git init in the folder to convert
-    the location to a git repository.
-
-    This will then return the repository object.
-
-    This will also explode gently, letting you know if issues
-    popped up.
-
-    Parameters
-    ----------
-    local_path: str = '.git'
-        The local repository path.
-
-    Returns
-    -------
-    local_repo: Repo
-        This is a repository object that can be used to control a
-        local git repository.
-
-    Examples
-    --------
-    >>> from tempfile import TemporaryDirectory
-    >>> with TemporaryDirectory() as t:
-    ...     local_repo = make_repo(f'{t}/.git')
-    >>> type(local_repo)
-    <class 'git.repo.base.Repo'>
-
-    """
-    # 0. Does this end in .git?
-    if not isinstance(local_path, str) or not local_path.endswith(".git"):
-        raise Exception(
-            f"""BabyGitr Error: Bad local repo path!
-        Local path does not meet the folliwing criteria:
-        1. Is a string
-        2. Ends in .git
-
-        local_path: {local_path}
-        """
-        )
-    # 1. Is this already a repo?
-    try:
-        # This is going to blow up if there's not a .git folder.
-        repo = Repo(local_path)
-    except InvalidGitRepositoryError:
-        repo = None
-    except NoSuchPathError:
-        repo = None
-
-    # 2. Try and make a repo!
-    if repo is None:
-        try:
-            repo = Repo.init(local_path, bare=True)
-        except BaseException as e:
-            raise Exception(
-                """BabyGitr Error: Unable to create local repo.
-
-            Something crazy happened. Maybe you don't have write access.
-            Maybe it's Tuesday. Maybe it's Schmaybelline.
-
-            Whatever, I can't do my job. Fix me, please!
-            """
-            ) from e
-
-    return repo
-
-
 def sync_repo():
     """Sync with the remote repository.
+
 
     This polls the upstream branch for new information and pushes
     changes.
     """
-    raise NotImplementedError
-
-
-def set_remote():
-    """Set the remote repository.
-
-    This sets the connection to the remote.
-    """
-    # Repo.remote
+    # repo.untracked_files
     raise NotImplementedError
 
 
@@ -134,58 +184,3 @@ def set_upstream_branch():
     synced.
     """
     raise NotImplementedError
-
-
-class BabyGitr:
-    """Holds persistent state for project."""
-
-    def __init__(self, config: Dict[str, str]) -> None:
-        """Spin up a baby-gitr."""
-        self._config = config
-        ############################################################
-        #                         Initial Setup                    #
-        # -------------------------------------------------------- #
-        # Here we're establishing that we can, in fact, connect to #
-        #   the git repository and push and pull from the remote.  #
-        # If we can't do that, we're going to throw some helpful   #
-        #   (ish) errors messages and raise a new error.           #
-        ############################################################
-        make_repo()
-        self._remote = set_remote()
-        set_upstream_branch()
-        authenticate_with_repo()
-
-    def connect():
-        pass
-
-    def sync():
-        pass
-
-
-def main():
-    """Runs the baby-giting loop"""
-    ################################################################
-    #                          Parse Input                         #
-    # ------------------------------------------------------------ #
-    # Here we're observing the input from the command line. This   #
-    #   information will be reused later.                          #
-    ################################################################
-    application_configuration: Dict[str, str] = parse_cli()
-    # Now we use that information to create a BabyGitr
-    repo_watcher: "BabyGitr" = BabyGitr(config=application_configuration)
-    ################################################################
-    #                       Supervision Loop                       #
-    # ------------------------------------------------------------ #
-    # At this point we've established our bona-fides and we're on  #
-    #   the list of people allowed to contribute to the upstream   #
-    #   repository, or not, and we're going to go through standard #
-    #   updates regardless. If we're allowed to commit to the      #
-    #   remote then we will be doing that as well!                 #
-    ################################################################
-    while True:
-        time.sleep(application_configuration["supervision_cycle_period"])
-        repo_watcher.sync()
-
-
-if __name__ == "__main__":
-    main()
