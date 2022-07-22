@@ -1,4 +1,3 @@
-
 import pytest
 import tempfile
 from babygitr.repowatcher import init_repo
@@ -8,7 +7,7 @@ from typing import Dict, Union
 
 # Here we're going to create a Pytest fixture which serves as a
 #   remote repository to use for testing purposes.
-@pytest.fixture(scope="package", autouse=True, name='remote')
+@pytest.fixture(scope="package", autouse=True, name="remote")
 def test_remote() -> str:
     """Return reference to a remote repository.
 
@@ -16,9 +15,7 @@ def test_remote() -> str:
     repository.
     """
     with tempfile.TemporaryDirectory() as tmpdir:
-        init_repo(
-            local_path=tmpdir
-        )
+        init_repo(local_path=tmpdir)
         yield tmpdir
 
 
@@ -40,35 +37,29 @@ configurations = [
     #   Given a target with no further configuration we should
     #   create the default branch. This, by default, assumes
     #   access.
-    {
-        'remote_url': 'specific folder name upstream?'
-    },
+    {"remote_url": "specific folder name upstream?"},
     # 3. This passes optional parameters specifying:
     #   * branch name
     #   * observation_frequency
     #   * sync_frequency
     #   * merge_strategy_arguments
     {
-        'remote_url': 'specific folder name upstream?',
-        'branch_name': 'some_number',
-        'observation_frequency': 'some_number',
-        'sync_frequency': 'some_number'
-    }
+        "remote_url": "specific folder name upstream?",
+        "branch_name": "some_number",
+        "observation_frequency": "some_number",
+        "sync_frequency": "some_number",
+    },
 ]
 
-expected_diff_local = [{},{},{}]
-expected_diff_remote = [{},{},{}]
+expected_diff_local = [{}, {}, {}]
+expected_diff_remote = [{}, {}, {}]
 
-test_cases = [
-    (x, y, z) for x, y, z in zip()
-]
+test_cases = [(x, y, z) for x, y, z in zip()]
 
 
 # @pytest.mark.parametrize(('configuration', 'local_diff', 'remote_diff'), test_cases)
 def test_babygitr(
-    configuration: Union[Dict[str, str], str],
-    local_diff: str,
-    remote_diff: str
+    configuration: Union[Dict[str, str], str], local_diff: str, remote_diff: str
 ):
     """This is an integration test that simulates an entire workflow."""
     # Update the local_folder in the config.

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm", "wheel"] #  "cffi>=1.9.1", "cached-property",
+requires = ["setuptools", "setuptools-scm", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,7 +16,7 @@ classifiers = [
 ]
 dynamic = ["version", "readme"]
 
-dependencies = ["pygit2==1.9.2", "schema==0.7.5"]
+dependencies = ["pygit2==1.9.2", "schema==0.7.5", "PyGithub==1.55"]
 
 [tool.setuptools.dynamic]
 version = {file = "VERSION"}

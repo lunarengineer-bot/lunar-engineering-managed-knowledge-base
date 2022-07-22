@@ -4,16 +4,20 @@ This uses functionality which exists in GitPython
 https://gitpython.readthedocs.io/en/stable/tutorial.html
 """
 import logging
+import os
 import pygit2
 from babygitr import _error as b_e
+
 # from git import NoSuchPathError, Repo
 from schema import Schema, Use
-from typing import Optional
+from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
 __SYNC_FREQUENCY__ = 0
 __LOG_FREQUENCY__ = 0
+__AUTHOR__ = pygit2.Signature("Timothy David Luna", "timmothy.d.luna@gmail.com")
+__COMMITTER__ = pygit2.Signature("BabyGitr", "babygitr@norealmail.com")
 
 
 def _remote_exists(remote: str) -> str:
@@ -39,15 +43,40 @@ def _remote_exists(remote: str) -> str:
     # Can git connect to this as a remote?
     _remote = pygit2.discover_repository(remote)
     if _remote is None:
-        raise b_e.BabyGitrBaseException(
-            f'Unable to connect to remote {_remote}'
-            )
+        raise b_e.BabyGitrBaseException(f"Unable to connect to remote {_remote}")
     return _remote
 
 
+def _new_repo(local_path: str) -> pygit2.Repository:
+    """Create a new, empty, local repository."""
+    repo = pygit2.init_repository(
+        path=local_path,
+    )
+    # https://www.pygit2.org/recipes/git-commit.html
+    # Add all the files we're going to watch to start.
+    index = repo.index
+    # Just add *everything*
+    index.add_all()
+    # Then write it to the index.
+    index.write()
+    ref = "HEAD"
+    message = "Initial commit"
+    tree = index.write_tree()
+    parents = []
+    repo.create_commit(
+        ref,  # reference_name
+        __AUTHOR__,  # author
+        __COMMITTER__,  # committer
+        message,  # message
+        tree,  # tree
+        parents,  # parents
+    )
+    return repo
+
+
 def init_repo(
-    local_path: str,
-    branch: str = 'main',
+    local_path: str = ".",
+    branch: str = "knowledge_base",
     remote_path: Optional[str] = None,
 ) -> pygit2.Repository:
     """Create a local repository.
@@ -56,8 +85,14 @@ def init_repo(
     it will attempt to clone that repository down, else it will create
     an empty repository at the local location.
 
+    This will set the working branch to `branch` (knowledge_base by
+    default.)
+
     This will also explode gently, letting you know if issues
     popped up.
+
+    What did I learn while doing this? pygit2 doesn't have good high
+    level documentation.
 
     Parameters
     ----------
@@ -70,7 +105,7 @@ def init_repo(
 
     Returns
     -------
-    local_repo: Repo
+    local_repo: pygit2.Repository
         This is a repository object that can be used to control a
         local git repository.
 
@@ -95,73 +130,84 @@ def init_repo(
     ...         branch='main',
     ...     )
     """
+    os.makedirs(local_path, exist_ok=True)
     if remote_path is not None:
+        # Down this leg we have a true remote to work with.
+        # We'll just clone that one down!
         # This validates the repo exists and can be connected to.
         remote_path = Schema(Use(_remote_exists)).validate(remote_path)
         repo = pygit2.clone_repository(
             url=remote_path,
             path=local_path,
-            checkout_branch=branch
         )
         logger.info(f"Connected to remote: {remote_path}")
     else:
+        # Down this leg we have no remote, so we just make
+        #   a blank project.
         logger.warn("No remote assigned. I'll still babysit your work!")
-        repo = pygit2.init_repository(
-            path=local_path,
-        )
-        # https://www.pygit2.org/recipes/git-commit.html
-        # Add all the files we're going to watch to start.
-        index = repo.index
-        # Just add *everything*
-        index.add_all()
-        # Then write it to the index.
-        index.write()
-        ref = "HEAD"
-        message = "Initial commit"
-        tree = index.write_tree()
-        parents = []
-        author = pygit2.Signature('Timothy David Luna', 'timmothy.d.luna@gmail.com')
-        committer = pygit2.Signature('BabyGitr', 'babygitr@norealmail.com')
-        repo.create_commit(ref, author, committer, message, tree, parents)
+        repo = _new_repo(local_path=local_path)
+        # Use the ID to return the Commit object.
+    # Now checkout the branch, whether or not it exists.
+    branch_obj = repo.lookup_branch(branch)
+    if branch_obj is None:
+        branch_obj = repo.branches.local.create(branch, repo.get(str(repo.head.target)))
+    ref = repo.lookup_reference(branch_obj.name)
+    repo.checkout(ref)
     return repo
 
 
-def set_remote(local_repo, remote_name: str = 'knowledge_base') -> None:
-    """Set the remote repository.
+def set_remote(
+    local_repo: pygit2.Repository,
+    remote_url: str,
+    remote_name: str = "origin",
+) -> None:
+    """Set the remote URL for the repository.
 
-    This sets the connection to the remote. If the remote does not
-    exist it will attempt to create the remote. If it cannot create
+    This sets the connection to the remote. If it cannot connect to
     the remote then it will die a tragic death.
+
+    Tl;Dr: `git remote add origin https://github.com/<user-name>/<repo-name>.git`
 
     Parameters
     ----------
-    local_repo: Repo
-        This is a git repository instance.
-    remote_project: str
+    local_repo: pygit2.Repository
+        This is a pygit2 repository instance.
+    remote_url: str
         This is the path to the remote.
-    **kwargs: Any
-        These are keyword arguments unpacked into create_remote
+    remote_name: str = 'origin'
+        This is the name of the remote.
     """
-    raise Exception("This is up next!")
-    # try:
-    #     remote = local_repo.remote(remote_name)
-    # except ValueError as e:
-    #     # This is *most likely* because the remote doesn't exist.
-    #     remote = None
-    # if remote is None:
-    #     local_repo.create_remote(
-    #         name='',
-    #         url='',
-    #         **kwargs
-    #     )
+    try:
+        origin = local_repo.remotes[remote_name]
+    except KeyError:
+        origin = None
+    if origin is not None:
+        local_repo.remotes.set_url(remote_name, remote_url)
+    else:
+        origin = local_repo.remotes.create(
+            remote_name,
+            url=remote_url,
+        )
 
 
-def authenticate_with_repo():
+def _authenticate_with_github():
+    """Authenticate with GitHub.
+
+    This authenticates with GitHub and returns local credentials.
+    Parameters
+    ----------
+    """
+    raise Exception("Ohno. This is next.")
+
+
+def authenticate_with_repo() -> Callable:
     """Authenticate with repository.
 
     This uses potentially temporary credentials to connect to a
     remote repository and generate secure and persistent
     credentials. These credentials are shared with the remote.
+
+    This returns a callable that may be used to authenticate.
     """
     raise NotImplementedError
 

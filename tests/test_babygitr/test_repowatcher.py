@@ -1,53 +1,41 @@
 """Tests the repo watcher."""
+import os
 import pytest
 from babygitr import repowatcher as br
-from git import Repo
+from pygit2 import Repository
+
 
 ####################################################################
 #                      Making Repositories                         #
 # ---------------------------------------------------------------- #
-# The section below lays out happy and sad path testing for        #
-#   creating a local repository. This mandates that all repos must #
-#   have a .git suffix. At the end this creates a single repo for  #
-#   use as a fixture.                                              #
+# The section below creates a series of fixtures used for further  #
+#   testing. This split marks a distinction between a repository   #
+#   created *with* a remote identified and one *without* a remote  #
+#   identified.                                                    #
 ####################################################################
 test_cases = [
-    # Obviously good value
-    ".git",
-    # Do it again!
-    ".git",
-    # Seems like it shouldn't work, but it will make the folder
-    "nonexistent/folder/.git"
+    dict(local_path="local", branch="knowledge_base", remote_path=None),
+    dict(local_path="upstream", branch="fried_cheese", remote_path="test_project"),
 ]
 
 
-@pytest.mark.usefixtures("test_dir")
-@pytest.mark.parametrize("repo", test_cases)
-def test_happy_path_make_repo(repo: str, test_dir: str):
-    """Test make_repo happy path."""
-    br.init_repo(f"{test_dir}/{repo}")
+@pytest.mark.usefixtures("test_project")
+@pytest.fixture(params=test_cases, ids=["local", "upstream"])
+def repo_instance(request, test_dir) -> Repository:
+    """Test make_repo happy path.
 
-
-test_cases = [
-    # Obviously bad value
-    (".mit", Exception, "BabyGitr Error: Bad local repo path"),
-    (None, Exception, "BabyGitr Error: Bad local repo path"),
-]
-
-
-@pytest.mark.usefixtures("test_dir")
-@pytest.mark.parametrize(("repo", "exception", "match"), test_cases)
-def test_sad_path_make_repo(
-    repo: str, exception: BaseException, match: str, test_dir: str
-):
-    """Test make_repo sad path."""
-    with pytest.raises(exception, match=match):
-        br.init_repo(f"{test_dir}/{repo}")
-
-
-@pytest.fixture
-def test_project(test_dir):
-    br.init_repo(f'{test_dir}/test_project/.git')
+    This takes the test directory and parametrizes that fixture.
+    """
+    # Copy the inputs.
+    input_dict = request.param.copy()
+    # Update the local path to be in the temporary directory.
+    input_dict["local_path"] = os.path.join(test_dir, input_dict["local_path"])
+    # If this is supposed to set the remote to the test_project, do that.
+    if input_dict["remote_path"] == "test_project":
+        input_dict["remote_path"] = os.path.join(test_dir, "test_project")
+    repo = br.init_repo(**input_dict)
+    assert isinstance(repo, Repository)
+    return repo
 
 
 ####################################################################
@@ -57,25 +45,15 @@ def test_project(test_dir):
 #   connecting a local project with an upstream remote. At the end #
 #   it declares an updated fixture appropriately set to the remote.#
 ####################################################################
-test_cases = ['this project']
 
 
 @pytest.mark.usefixtures("test_project")
-@pytest.mark.parametrize("remote", test_cases)
-def test_happy_path_set_remote(remote: str, test_project: Repo):
+@pytest.mark.usefixtures("test_dir")
+@pytest.mark.usefixtures("repo_instance")
+def test_happy_path_set_remote(test_dir: str, repo_instance: Repository):
     """Test set_remote happy path."""
-    test_project.remote(remote)
-
-
-test_cases = [
-    # This obviously does not exist.
-    ('fictitious')
-]
-
-
-@pytest.mark.usefixtures("test_project")
-@pytest.mark.parametrize("remote", test_cases)
-def test_sad_path_set_remote(remote: str, exception: BaseException, match: str,  test_project: Repo):
-    """Test set_remote sad path."""
-    with pytest.raises(exception, match=match):
-        test_project.remote(remote)
+    br.set_remote(
+        local_repo=repo_instance, remote_url=os.path.join(test_dir, "test_project")
+    )
+    assert repo_instance.remotes["origin"].name == "origin"
+    assert repo_instance.remotes["origin"].url == os.path.join(test_dir, "test_project")

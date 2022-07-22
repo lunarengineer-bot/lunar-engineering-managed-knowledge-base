@@ -32,30 +32,27 @@ from schema import Optional as SchemaOptional, Schema
 from typing import Dict, List, Optional, Union
 
 
-_config_type = Dict[
-    str, Union[
-        str,
-        int,
-        Dict[
-            str, List[str]
-        ]
-    ]
-]
+_config_type = Dict[str, Union[str, int, Dict[str, List[str]]]]
 
 
-default_configuration = Schema({
-    SchemaOptional('local_folder', default='.'): str,
-    SchemaOptional('remote_url', default=''): str,
-    SchemaOptional('branch_name', default='babygitr_managed_branch'): str,
-    SchemaOptional('upstream_branch', default=''): str,
-    SchemaOptional('observation_frequency', default=30): int,
-    SchemaOptional('sync_frequency', default=30): int,
-    SchemaOptional('sync_configuration', default=lambda: Schema(
-        {
-            SchemaOptional('keep_local', default=[]): [str],
-        }
-    ).validate({})): Dict[str, List[str]]
-})
+default_configuration = Schema(
+    {
+        SchemaOptional("local_folder", default="."): str,
+        SchemaOptional("remote_url", default=""): str,
+        SchemaOptional("branch_name", default="babygitr_managed_branch"): str,
+        SchemaOptional("upstream_branch", default=""): str,
+        SchemaOptional("observation_frequency", default=30): int,
+        SchemaOptional("sync_frequency", default=30): int,
+        SchemaOptional(
+            "sync_configuration",
+            default=lambda: Schema(
+                {
+                    SchemaOptional("keep_local", default=[]): [str],
+                }
+            ).validate({}),
+        ): Dict[str, List[str]],
+    }
+)
 
 
 class BabyGitr:
@@ -66,6 +63,7 @@ class BabyGitr:
     config: _config_type
         A configuration object for BabyGitr.
     """
+
     def __init__(self, config: Optional[Union[str, _config_type]] = None) -> None:
         ############################################################
         #                       Validate Config                    #
@@ -76,7 +74,7 @@ class BabyGitr:
         if config is None:
             config = {}
         if isinstance(config, str):
-            with open(config, 'r') as yaml_file:
+            with open(config, "r") as yaml_file:
                 config = yaml.safe_load(yaml_file.readlines())
         self._config = default_configuration.validate(config)
         ############################################################
@@ -88,12 +86,12 @@ class BabyGitr:
         #   (ish) errors messages and raise a new error.           #
         ############################################################
         init_repo(
-            local_path=self._config['local_folder'],
-            remote_path=self._config['remote_url'],
-            branch=self._config['branch_name']
+            local_path=self._config["local_folder"],
+            remote_path=self._config["remote_url"],
+            branch=self._config["branch_name"],
         )
-        self._remote = set_remote(self._config['branch_name'])
-        set_upstream_branch(self._config['upstream_branch'])
+        self._remote = set_remote(self._config["branch_name"])
+        set_upstream_branch(self._config["upstream_branch"])
         # authenticate_with_repo()
 
     def generate_config():
