@@ -26,7 +26,7 @@ from babygitr.repowatcher import (
     init_repo,
     set_remote,
     set_upstream_branch,
-    # authenticate_with_repo
+    authenticate_with_repo
 )
 from schema import Optional as SchemaOptional, Schema
 from typing import Dict, List, Optional, Union
@@ -44,6 +44,21 @@ default_configuration = Schema(
         SchemaOptional("observation_frequency", default=30): int,
         SchemaOptional("sync_frequency", default=30): int,
         SchemaOptional(
+            "auth_configuration",
+            default=lambda: Schema(
+                {
+                    # Either
+                    SchemaOptional("public_key"): str,
+                    SchemaOptional("private_key"): str,
+                    SchemaOptional("passphrase"): str,
+                    # Or
+                    SchemaOptional("username"): str,
+                    # With maybe
+                    SchemaOptional("password"): str,
+                }
+            ).validate({})
+        ): Dict[str, str],
+        SchemaOptional(
             "sync_configuration",
             default=lambda: Schema(
                 {
@@ -58,12 +73,13 @@ default_configuration = Schema(
 class BabyGitr:
     """Holds persistent state for project.
 
+    This class manages a persistent Git repository.
+
     Parameters
     ----------
     config: _config_type
         A configuration object for BabyGitr.
     """
-
     def __init__(self, config: Optional[Union[str, _config_type]] = None) -> None:
         ############################################################
         #                       Validate Config                    #
@@ -75,7 +91,7 @@ class BabyGitr:
             config = {}
         if isinstance(config, str):
             with open(config, "r") as yaml_file:
-                config = yaml.safe_load(yaml_file.readlines())
+                config = yaml.safe_load(yaml_file.read())
         self._config = default_configuration.validate(config)
         ############################################################
         #                         Initial Setup                    #
@@ -85,20 +101,27 @@ class BabyGitr:
         # If we can't do that, we're going to throw some helpful   #
         #   (ish) errors messages and raise a new error.           #
         ############################################################
-        init_repo(
+        self._repository = init_repo(
             local_path=self._config["local_folder"],
             remote_path=self._config["remote_url"],
             branch=self._config["branch_name"],
         )
-        self._remote = set_remote(self._config["branch_name"])
+        set_remote(
+            local_repo=self._repository,
+            remote_name=self._config["remote_name"],
+            remote_url=self._config["branch_name"]
+        )
+        authenticate_with_repo(
+            local_repo=self._repository
+        )
         set_upstream_branch(self._config["upstream_branch"])
         # authenticate_with_repo()
 
-    def generate_config():
+    def generate_config(self):
         """Dump out a default configuration."""
         raise NotImplementedError
 
-    def sync():
+    def sync(self):
         raise NotImplementedError
 
 
@@ -114,7 +137,7 @@ def main():
     # Here we're observing the input from the command line. This   #
     #   information will be reused later.                          #
     ################################################################
-    application_configuration: Dict[str, str] = parse_cli()
+    application_configuration: Union[str, Dict[str, Union[str, int, Dict[str, List[str]]]], None] = parse_cli()
     # Now we use that information to create a BabyGitr
     repo_watcher: "BabyGitr" = BabyGitr(config=application_configuration)
     ################################################################
@@ -127,7 +150,7 @@ def main():
     #   remote then we will be doing that as well!                 #
     ################################################################
     while True:
-        time.sleep(application_configuration["supervision_cycle_period"])
+        time.sleep(float(application_configuration["supervision_cycle_period"]))
         repo_watcher.sync()
 
 

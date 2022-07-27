@@ -7,10 +7,8 @@ import logging
 import os
 import pygit2
 from babygitr import _error as b_e
-
-# from git import NoSuchPathError, Repo
 from schema import Schema, Use
-from typing import Callable, Optional
+from typing import Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +60,7 @@ def _new_repo(local_path: str) -> pygit2.Repository:
     ref = "HEAD"
     message = "Initial commit"
     tree = index.write_tree()
-    parents = []
+    parents: List[str] = []
     repo.create_commit(
         ref,  # reference_name
         __AUTHOR__,  # author
@@ -117,9 +115,10 @@ def init_repo(
     >>> from tempfile import TemporaryDirectory
     >>> with TemporaryDirectory() as t:
     ...     local_repo = init_repo(f'{t}/.git', branch='test')
-    >>> type(local_repo)
+    ...     type(local_repo)
     <class 'pygit2.repository.Repository'>
-    >>> list(local_repo.branches)
+
+    ...     list(local_repo.branches)
 
     This is an example showcasing how to use with a 'local remote'
     >>> with TemporaryDirectory() as t:
@@ -130,12 +129,12 @@ def init_repo(
     ...         branch='main',
     ...     )
     """
-    os.makedirs(local_path, exist_ok=True)
     if remote_path is not None:
         # Down this leg we have a true remote to work with.
         # We'll just clone that one down!
         # This validates the repo exists and can be connected to.
         remote_path = Schema(Use(_remote_exists)).validate(remote_path)
+        os.makedirs(local_path, exist_ok=True)
         repo = pygit2.clone_repository(
             url=remote_path,
             path=local_path,
@@ -145,7 +144,14 @@ def init_repo(
         # Down this leg we have no remote, so we just make
         #   a blank project.
         logger.warn("No remote assigned. I'll still babysit your work!")
-        repo = _new_repo(local_path=local_path)
+        # First, does a repo exist locally?
+        if os.path.exists(os.path.join(local_path, '.git')):
+            repo = pygit2.init_repository(
+                path=local_path,
+            )
+        else:
+            os.makedirs(local_path, exist_ok=True)
+            repo = _new_repo(local_path=local_path)
         # Use the ID to return the Commit object.
     # Now checkout the branch, whether or not it exists.
     branch_obj = repo.lookup_branch(branch)
@@ -190,29 +196,64 @@ def set_remote(
         )
 
 
-def _authenticate_with_github():
-    """Authenticate with GitHub.
-
-    This authenticates with GitHub and returns local credentials.
-    Parameters
-    ----------
-    """
-    raise Exception("Ohno. This is next.")
-
-
-def authenticate_with_repo() -> Callable:
+def authenticate_with_repo(
+    auth_config: Dict[str, str]
+) -> Union[pygit2.credentials.UserPass, pygit2.credentials.Keypair]:
     """Authenticate with repository.
 
-    This uses potentially temporary credentials to connect to a
-    remote repository and generate secure and persistent
-    credentials. These credentials are shared with the remote.
+    This returns a callable object that may be used to authenticate.
 
-    This returns a callable that may be used to authenticate.
+    Parameters
+    ----------
+    auth_config: Dict[str, str]
+        This is a dictionary with either the information for using
+        either username/password or GPG.
+
+    Examples
+    --------
+    Make a callable that can return a userpass.
+    >>> cred_callable = authenticate_with_repo(dict(username='steve', password='steve!'))
+    >>> type(cred_callable)
+    <class 'pygit2.credentials.UserPass'>
+
+    Make a callable that can return a GPG keypair.
+    >>> cred_callable = authenticate_with_repo(
+    ...     dict(
+    ...         username='steve',
+    ...         pubkey='~/.ssh/stupidkey.pub',
+    ...         privkey='~/.ssh/stupidkey',
+    ...     )
+    ... )
+    >>> type(cred_callable)
+    <class 'pygit2.credentials.Keypair'>
     """
-    raise NotImplementedError
+    _auth_config = auth_config.copy()
+    userpass = set(_auth_config) == {'username', 'password'}
+    keypair = (
+        set(_auth_config) == {'username', 'pubkey', 'privkey', 'passphrase'}
+        or
+        set(_auth_config) == {'username', 'pubkey', 'privkey'}
+    )
+    if userpass:
+        return pygit2.UserPass(**_auth_config)
+    elif keypair:
+        if 'passphrase' not in _auth_config:
+            _auth_config['passphrase'] = ''
+        return pygit2.Keypair(**_auth_config)
+    else:
+        raise NotImplementedError("""
+
+        Currently Implemented Auth Methods
+        ----------------------------------
+        Please select from the sets below and pass a full set of parameters.
+
+        * Username and password {'username', 'password'}
+        * GPG {'username', 'pubkey', 'privkey'}
+        * GPG {'username', 'pubkey', 'privkey', 'passphrase'}
+        """)
 
 
-def sync_repo():
+def sync_repo() -> None:
     """Sync with the remote repository.
 
 
@@ -223,7 +264,7 @@ def sync_repo():
     raise NotImplementedError
 
 
-def set_upstream_branch():
+def set_upstream_branch() -> None:
     """Set an upstream branch to sync to.
 
     This sets an upstream source of information which should be
