@@ -6,15 +6,35 @@ Default Configuration
 >>> from babygitr import default_configuration
 >>> print(json.dumps(default_configuration.validate({}), sort_keys = True, indent=4))
 {
+    "auth_configuration": {
+        "password": "secret",
+        "username": "Kilroy"
+    },
     "branch_name": "babygitr_managed_branch",
     "local_folder": ".",
-    "observation_frequency": 30,
     "remote_url": "",
     "sync_configuration": {
-        "keep_local": []
+        "dir": ".",
+        "observation_frequency": 30,
+        "sync_frequency": 120
+    }
+}
+
+>>> test = {'sync_configuration': {'dir': '.'}}
+>>> print(json.dumps(default_configuration.validate(test), sort_keys = True, indent=4))
+{
+    "auth_configuration": {
+        "password": "secret",
+        "username": "Kilroy"
     },
-    "sync_frequency": 30,
-    "upstream_branch": ""
+    "branch_name": "babygitr_managed_branch",
+    "local_folder": ".",
+    "remote_url": "",
+    "sync_configuration": {
+        "dir": ".",
+        "observation_frequency": 30,
+        "sync_frequency": 120
+    }
 }
 
 ```
@@ -25,7 +45,6 @@ import yaml
 from babygitr.repowatcher import (
     init_repo,
     set_remote,
-    set_upstream_branch,
     authenticate_with_repo
 )
 from schema import Optional as SchemaOptional, Schema
@@ -40,32 +59,34 @@ default_configuration = Schema(
         SchemaOptional("local_folder", default="."): str,
         SchemaOptional("remote_url", default=""): str,
         SchemaOptional("branch_name", default="babygitr_managed_branch"): str,
-        SchemaOptional("upstream_branch", default=""): str,
-        SchemaOptional("observation_frequency", default=30): int,
-        SchemaOptional("sync_frequency", default=30): int,
         SchemaOptional(
             "auth_configuration",
-            default=lambda: Schema(
-                {
-                    # Either
-                    SchemaOptional("public_key"): str,
-                    SchemaOptional("private_key"): str,
-                    SchemaOptional("passphrase"): str,
-                    # Or
-                    SchemaOptional("username"): str,
-                    # With maybe
-                    SchemaOptional("password"): str,
-                }
-            ).validate({})
-        ): Dict[str, str],
+            default=lambda: {
+                'username': 'Kilroy',
+                'password': 'secret'
+            }
+        ): {
+            # This
+            SchemaOptional("username"): str,
+            # with either
+            SchemaOptional("public_key"): str,
+            SchemaOptional("private_key"): str,
+            SchemaOptional("passphrase"): str,
+            # or
+            SchemaOptional("password"): str,
+        },
         SchemaOptional(
             "sync_configuration",
-            default=lambda: Schema(
-                {
-                    SchemaOptional("keep_local", default=[]): [str],
-                }
-            ).validate({}),
-        ): Dict[str, List[str]],
+            default=lambda: {
+                'dir': '.',
+                "observation_frequency": 30,
+                'sync_frequency': 120
+            }
+        ): {
+            SchemaOptional("dir", default='.'): str,
+            SchemaOptional("observation_frequency", default=30): int,
+            SchemaOptional("sync_frequency", default=120): int,
+        }
     }
 )
 
@@ -111,11 +132,11 @@ class BabyGitr:
             remote_name=self._config["remote_name"],
             remote_url=self._config["branch_name"]
         )
-        authenticate_with_repo(
+        self._auth_callable = authenticate_with_repo(
             local_repo=self._repository
         )
-        set_upstream_branch(self._config["upstream_branch"])
-        # authenticate_with_repo()
+        # Is there any initial setup that needs to be done in terms of files?
+        self.sync()
 
     def generate_config(self):
         """Dump out a default configuration."""
@@ -149,9 +170,19 @@ def main():
     #   updates regardless. If we're allowed to commit to the      #
     #   remote then we will be doing that as well!                 #
     ################################################################
+    sync_t = application_configuration['sync_configuration']['sync_frequency']
+    observe_t = application_configuration['sync_configuration']['observation_frequency']
     while True:
-        time.sleep(float(application_configuration["supervision_cycle_period"]))
-        repo_watcher.sync()
+        _t = min(sync_t, observe_t)
+        time.sleep(_t)
+        if _t == sync_t:
+            repo_watcher.sync()
+            observe_t -= _t
+            sync_t = application_configuration['sync_configuration']['sync_frequency']
+        elif _t == observe_t:
+            repo_watcher.sync()
+            sync_t -= _t
+            observe_t = application_configuration['sync_configuration']['observation_t_frequency']
 
 
 if __name__ == "__main__":

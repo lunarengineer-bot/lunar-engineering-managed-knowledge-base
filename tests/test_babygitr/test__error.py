@@ -15,10 +15,13 @@ def test_BabyGitrExceptions(exception: b_e.BabyGitrBaseException):
         raise exception
 
 
+@pytest.mark.parametrize(("exception", "msg_head"), zip(exception_list, message_heads))
 def test_BabyGitrExceptions_with_message(
     exception: b_e.BabyGitrBaseException, msg_head: str
 ):
-    with pytest.raises(exception, match=msg_head):
+    with pytest.raises(exception):
         raise exception
+    with pytest.raises(exception, match=msg_head):
+        raise exception()
     with pytest.raises(exception, match="steve"):
         raise exception("steve")

@@ -253,21 +253,21 @@ def authenticate_with_repo(
         """)
 
 
-def sync_repo() -> None:
-    """Sync with the remote repository.
-
+def sync_repo(
+    local_repo: pygit2.Repository,
+) -> None:
+    """Sync files, potentially with the remote repository.
 
     This polls the upstream branch for new information and pushes
     changes.
+
+    Parameters
+    ----------
+    local_repo: pygit2.Repository
+        This is the local repo.
     """
-    # repo.untracked_files
-    raise NotImplementedError
-
-
-def set_upstream_branch() -> None:
-    """Set an upstream branch to sync to.
-
-    This sets an upstream source of information which should be
-    synced.
-    """
+    # Here we check for new files and changes; stage those!
+    index = local_repo.index
+    index.add()
+    index.write()
     raise NotImplementedError
