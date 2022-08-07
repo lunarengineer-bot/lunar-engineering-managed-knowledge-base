@@ -45,7 +45,7 @@ import yaml
 from babygitr.repowatcher import (
     init_repo,
     set_remote,
-    authenticate_with_repo
+    create_auth_callback
 )
 from schema import Optional as SchemaOptional, Schema
 from typing import Dict, List, Optional, Union
@@ -80,12 +80,14 @@ default_configuration = Schema(
             default=lambda: {
                 'dir': '.',
                 "observation_frequency": 30,
-                'sync_frequency': 120
+                'sync_frequency': 120,
+                "ignore": None
             }
         ): {
             SchemaOptional("dir", default='.'): str,
             SchemaOptional("observation_frequency", default=30): int,
             SchemaOptional("sync_frequency", default=120): int,
+            SchemaOptional("ignore", default=None): [str],
         }
     }
 )
@@ -132,7 +134,7 @@ class BabyGitr:
             remote_name=self._config["remote_name"],
             remote_url=self._config["branch_name"]
         )
-        self._auth_callable = authenticate_with_repo(
+        self._auth_callable = create_auth_callback(
             local_repo=self._repository
         )
         # Is there any initial setup that needs to be done in terms of files?

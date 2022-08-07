@@ -30,11 +30,13 @@
 	"mounts": [
 		// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
 		// "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+		// This is where the testing environments will be dumped.
 		"source=babygitrproject,target=/project,type=volume",
+		// This is where the extensions will be dumped.
 		"source=babygitrextensions,target=/root/.vscode-server/extensions,type=volume",
+		// This is where the secrets used in the testing suite need to be.
 		"source=babygitrsecrets,target=/babygitrsecrets,type=volume"
-	],
-
+	]
 	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
 	// "remoteUser": "vscode"
 }

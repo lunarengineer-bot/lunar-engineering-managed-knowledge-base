@@ -1,5 +1,6 @@
 """Tests the repo watcher."""
 import os
+import pygit2
 import pytest
 from babygitr import repowatcher as br
 from pygit2 import Repository
@@ -57,3 +58,41 @@ def test_happy_path_set_remote(test_dir: str, repo_instance: Repository):
     )
     assert repo_instance.remotes["origin"].name == "origin"
     assert repo_instance.remotes["origin"].url == os.path.join(test_dir, "test_project")
+
+
+@pytest.mark.usefixtures("repo_instance")
+def test_happy_path_create_auth_callback(repo_instance: Repository):
+    # I can set user pass
+    auth_config = {
+        'username': 'lunarengineer-bot',
+        'password': 'Hah. No.'
+    }
+    br.create_auth_callback(auth_config)
+    auth_config = {
+        'username': 'lunarengineer-bot',
+        'pubkey': '/babygitrsecrets/id_rsa.pub',
+        'privkey': '/babygitrsecrets/id_rsa',
+    }
+    # I can set GPG key
+    br.create_auth_callback(auth_config)
+    auth_config = {
+        'username': 'lunarengineer-bot',
+        'pubkey': '/babygitrsecrets/id_rsa.pub',
+        'privkey': '/babygitrsecrets/id_rsa',
+        'passphrase': 'super secret'
+    }
+    # With a passphase!
+    br.create_auth_callback(auth_config)
+
+
+@pytest.mark.usefixtures("repo_instance")
+def test_happy_path_sync_repo(repo_instance: Repository):
+    # Add a file
+    with open(os.path.join(repo_instance.path.replace('.git/', ''), 'stupid.file'), 'w') as f:
+        f.write('stupidlines')
+    # raise Exception(r)
+    br.sync_repo(
+        local_repo=repo_instance,
+        author=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
+        committer=pygit2.Signature('BabyGitr', 'babygitr@nomail.com')
+    )

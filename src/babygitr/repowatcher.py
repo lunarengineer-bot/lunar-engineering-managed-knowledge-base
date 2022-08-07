@@ -8,14 +8,12 @@ import os
 import pygit2
 from babygitr import _error as b_e
 from schema import Schema, Use
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
 __SYNC_FREQUENCY__ = 0
 __LOG_FREQUENCY__ = 0
-__AUTHOR__ = pygit2.Signature("Timothy David Luna", "timmothy.d.luna@gmail.com")
-__COMMITTER__ = pygit2.Signature("BabyGitr", "babygitr@norealmail.com")
 
 
 def _remote_exists(remote: str) -> str:
@@ -45,6 +43,46 @@ def _remote_exists(remote: str) -> str:
     return _remote
 
 
+def _add_changes(
+    repo: pygit2.Repository,
+    author: pygit2.Signature,
+    committer: pygit2.Signature,
+    ref: str = 'HEAD',
+    message: str = 'Initial commit.',
+    parents: Optional[List[str]] = None,
+    changes: Optional[Any] = None
+) -> pygit2.Repository:
+    # When this needs to be a little more intelligent and do
+    #   targeted commits it may use repo.status() `git status`.
+    # That returns a mapping of {'files': 'status (admended, new, e.g.)'}
+    # This essentially defaults to an initial commit, but provides a
+    #   one-liner to create more targeted commits.
+    # If we don't have a parent, shrug.
+    if parents is None:
+        parents = []
+    # Extract the index
+    index = repo.index
+    # Account for all changes.
+    if changes is not None:
+        # Just add *everything*
+        index.add_all(changes)
+    else:
+        index.add_all()
+    # Write the changes to the index.
+    index.write()
+    # Create a tree from the index aaaand...
+    tree = index.write_tree()
+    # Lock that into place.
+    repo.create_commit(
+        ref,  # reference_name
+        author,  # author
+        committer,  # committer
+        message,  # message
+        tree,  # tree
+        parents,  # parents
+    )
+
+
 def _new_repo(local_path: str) -> pygit2.Repository:
     """Create a new, empty, local repository."""
     repo = pygit2.init_repository(
@@ -52,22 +90,10 @@ def _new_repo(local_path: str) -> pygit2.Repository:
     )
     # https://www.pygit2.org/recipes/git-commit.html
     # Add all the files we're going to watch to start.
-    index = repo.index
-    # Just add *everything*
-    index.add_all()
-    # Then write it to the index.
-    index.write()
-    ref = "HEAD"
-    message = "Initial commit"
-    tree = index.write_tree()
-    parents: List[str] = []
-    repo.create_commit(
-        ref,  # reference_name
-        __AUTHOR__,  # author
-        __COMMITTER__,  # committer
-        message,  # message
-        tree,  # tree
-        parents,  # parents
+    _add_changes(
+        repo=repo,
+        author=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
+        committer=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
     )
     return repo
 
@@ -134,11 +160,19 @@ def init_repo(
         # We'll just clone that one down!
         # This validates the repo exists and can be connected to.
         remote_path = Schema(Use(_remote_exists)).validate(remote_path)
+        # This makes the folder if it doesn't exist.
         os.makedirs(local_path, exist_ok=True)
-        repo = pygit2.clone_repository(
-            url=remote_path,
-            path=local_path,
-        )
+        # This clones down, breaks if it exists, and tries to lay a git repo
+        #   over what's there.
+        try:
+            repo = pygit2.clone_repository(
+                url=remote_path,
+                path=local_path,
+            )
+        except ValueError:
+            repo = pygit2.init_repository(
+                path=local_path,
+            )
         logger.info(f"Connected to remote: {remote_path}")
     else:
         # Down this leg we have no remote, so we just make
@@ -196,12 +230,25 @@ def set_remote(
         )
 
 
-def authenticate_with_repo(
-    auth_config: Dict[str, str]
-) -> Union[pygit2.credentials.UserPass, pygit2.credentials.Keypair]:
-    """Authenticate with repository.
+__AUTH_STR__ = """
 
-    This returns a callable object that may be used to authenticate.
+Currently Implemented Auth Methods
+----------------------------------
+Please select from the sets below and pass a full set of parameters.
+
+* Username and password {'username', 'password'}
+* GPG {'username', 'pubkey', 'privkey'}
+* GPG {'username', 'pubkey', 'privkey', 'passphrase'}
+"""
+
+
+def create_auth_callback(
+    auth_config: Dict[str, str]
+) -> pygit2.RemoteCallbacks:
+    """Return an authentication callback.
+
+    This returns a callable object that may be used in pygit2
+    authentication.
 
     Parameters
     ----------
@@ -212,12 +259,12 @@ def authenticate_with_repo(
     Examples
     --------
     Make a callable that can return a userpass.
-    >>> cred_callable = authenticate_with_repo(dict(username='steve', password='steve!'))
+    >>> cred_callable = create_auth_callback(dict(username='steve', password='steve!'))
     >>> type(cred_callable)
-    <class 'pygit2.credentials.UserPass'>
+    <class 'pygit2.callbacks.RemoteCallbacks'>
 
     Make a callable that can return a GPG keypair.
-    >>> cred_callable = authenticate_with_repo(
+    >>> cred_callable = create_auth_callback(
     ...     dict(
     ...         username='steve',
     ...         pubkey='~/.ssh/stupidkey.pub',
@@ -225,7 +272,20 @@ def authenticate_with_repo(
     ...     )
     ... )
     >>> type(cred_callable)
-    <class 'pygit2.credentials.Keypair'>
+    <class 'pygit2.callbacks.RemoteCallbacks'>
+
+    These are the currently implemented authentication methods.
+    >>> print(__AUTH_STR__)
+    <BLANKLINE>
+    <BLANKLINE>
+    Currently Implemented Auth Methods
+    ----------------------------------
+    Please select from the sets below and pass a full set of parameters.
+    <BLANKLINE>
+    * Username and password {'username', 'password'}
+    * GPG {'username', 'pubkey', 'privkey'}
+    * GPG {'username', 'pubkey', 'privkey', 'passphrase'}
+    <BLANKLINE>
     """
     _auth_config = auth_config.copy()
     userpass = set(_auth_config) == {'username', 'password'}
@@ -235,26 +295,24 @@ def authenticate_with_repo(
         set(_auth_config) == {'username', 'pubkey', 'privkey'}
     )
     if userpass:
-        return pygit2.UserPass(**_auth_config)
+        auth_func = pygit2.UserPass(**_auth_config)
     elif keypair:
         if 'passphrase' not in _auth_config:
             _auth_config['passphrase'] = ''
-        return pygit2.Keypair(**_auth_config)
+        auth_func = pygit2.Keypair(**_auth_config)
     else:
-        raise NotImplementedError("""
-
-        Currently Implemented Auth Methods
-        ----------------------------------
-        Please select from the sets below and pass a full set of parameters.
-
-        * Username and password {'username', 'password'}
-        * GPG {'username', 'pubkey', 'privkey'}
-        * GPG {'username', 'pubkey', 'privkey', 'passphrase'}
-        """)
+        raise NotImplementedError()
+    return pygit2.RemoteCallbacks(
+        credentials=auth_func
+    )
 
 
 def sync_repo(
     local_repo: pygit2.Repository,
+    author: pygit2.Signature,
+    committer: pygit2.Signature,
+    branch: str,
+    auth_config: Optional[Dict[str, str]]
 ) -> None:
     """Sync files, potentially with the remote repository.
 
@@ -265,9 +323,39 @@ def sync_repo(
     ----------
     local_repo: pygit2.Repository
         This is the local repo.
+    author: pygit2.Signature
+        The signature for the author.
+    committer: pygit2.Signature
+        The signature for the committer.
+    branch: str
+        The branch to commit the latest ref for.
+    auth_config: Dict[str, str]
+        This is a dictionary with either the information for using
+        either username/password or GPG.
     """
-    # Here we check for new files and changes; stage those!
-    index = local_repo.index
-    index.add()
-    index.write()
-    raise NotImplementedError
+    _add_changes(
+        repo=local_repo,
+        author=author,
+        committer=committer,
+        ref=local_repo.head.name,
+        message='chore(babygitr): sync',
+        parents=[local_repo.head.target],
+    )
+    latest_ref = local_repo.lookup_reference_dwim(branch)
+    # Now we push/pull? Does this work?
+    if auth_config is not None:
+        local_repo.remotes['origin'].connect(
+            callbacks=create_auth_callback(auth_config=auth_config)
+        )
+    else:
+        local_repo.remotes['origin'].connect(
+            callbacks=create_auth_callback(auth_config=auth_config)
+        )
+    local_repo.remotes['origin'].push(specs=[latest_ref.target])
+    # [local_repo.head.name]
+    # .push(
+    #     ,
+
+    # )
+    # https://www.pygit2.org/recipes/git-commit.html
+# lunarengineer-bot
