@@ -341,21 +341,16 @@ def sync_repo(
         message='chore(babygitr): sync',
         parents=[local_repo.head.target],
     )
-    latest_ref = local_repo.lookup_reference_dwim(branch)
     # Now we push/pull? Does this work?
-    if auth_config is not None:
-        local_repo.remotes['origin'].connect(
-            callbacks=create_auth_callback(auth_config=auth_config)
-        )
-    else:
-        local_repo.remotes['origin'].connect(
-            callbacks=create_auth_callback(auth_config=auth_config)
-        )
-    local_repo.remotes['origin'].push(specs=[latest_ref.target])
-    # [local_repo.head.name]
-    # .push(
-    #     ,
+    if auth_config is None:
+        return None
 
-    # )
-    # https://www.pygit2.org/recipes/git-commit.html
-# lunarengineer-bot
+    # Test the connection
+    local_repo.remotes['origin'].connect(
+        callbacks=create_auth_callback(auth_config=auth_config)
+    )
+    # Determine if the desired branch is upstream
+    local_repo.remotes['origin'].push(
+        [local_repo.lookup_reference_dwim(branch).name],
+        callbacks=create_auth_callback(auth_config=auth_config)
+    )

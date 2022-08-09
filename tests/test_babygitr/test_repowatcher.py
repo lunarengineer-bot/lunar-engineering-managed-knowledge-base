@@ -4,6 +4,7 @@ import pygit2
 import pytest
 from babygitr import repowatcher as br
 from pygit2 import Repository
+from typing import Dict
 
 
 ####################################################################
@@ -60,39 +61,52 @@ def test_happy_path_set_remote(test_dir: str, repo_instance: Repository):
     assert repo_instance.remotes["origin"].url == os.path.join(test_dir, "test_project")
 
 
-@pytest.mark.usefixtures("repo_instance")
-def test_happy_path_create_auth_callback(repo_instance: Repository):
+test_auths = [
     # I can set user pass
-    auth_config = {
+    {
         'username': 'lunarengineer-bot',
         'password': 'Hah. No.'
-    }
-    br.create_auth_callback(auth_config)
-    auth_config = {
-        'username': 'lunarengineer-bot',
+    },
+    # I can set GPG key
+    {
+        'username': 'git',
         'pubkey': '/babygitrsecrets/id_rsa.pub',
         'privkey': '/babygitrsecrets/id_rsa',
-    }
-    # I can set GPG key
-    br.create_auth_callback(auth_config)
-    auth_config = {
-        'username': 'lunarengineer-bot',
+    },
+    # With a passphase!
+    {
+        'username': 'git',
         'pubkey': '/babygitrsecrets/id_rsa.pub',
         'privkey': '/babygitrsecrets/id_rsa',
         'passphrase': 'super secret'
     }
-    # With a passphase!
-    br.create_auth_callback(auth_config)
+]
+
+
+@pytest.mark.parametrize(('auth_config'), test_auths)
+def test_auth_callback(auth_config: Dict[str, str]):
+    assert isinstance(
+        br.create_auth_callback(auth_config), pygit2.RemoteCallbacks
+    )
 
 
 @pytest.mark.usefixtures("repo_instance")
 def test_happy_path_sync_repo(repo_instance: Repository):
     # Add a file
-    with open(os.path.join(repo_instance.path.replace('.git/', ''), 'stupid.file'), 'w') as f:
-        f.write('stupidlines')
-    # raise Exception(r)
+    repo_dir = repo_instance.path.replace('.git/', '')
+    stupid_file = os.path.join(repo_dir, 'stupid.file')
+    # raise Exception(f"""
+    # {stupid_file}
+    # {repo_dir}
+    # """)
+    with open(stupid_file, 'w') as f:
+        f.writelines(['stupidlines'])
     br.sync_repo(
         local_repo=repo_instance,
         author=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
-        committer=pygit2.Signature('BabyGitr', 'babygitr@nomail.com')
+        committer=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
+        branch='knowledge_branch',
+        auth_config=None
     )
+    # raise Exception(os.listdir(repo_dir))
+    raise Exception(os.listdir(repo_instance.remotes["origin"].url))
