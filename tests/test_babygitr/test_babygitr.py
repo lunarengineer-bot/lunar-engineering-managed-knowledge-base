@@ -55,15 +55,18 @@ expected_diff_local = [{}, {}, {}]
 expected_diff_remote = [{}, {}, {}]
 
 test_cases = [
-    (x, y, z) for x, y, z in
-    zip(configurations, expected_diff_local, expected_diff_remote)
+    (x, y, z)
+    for x, y, z in zip(configurations, expected_diff_local, expected_diff_remote)
 ]
 
 
-@pytest.mark.usefixtures('test_dir')
-@pytest.mark.parametrize(('configuration', 'local_diff', 'remote_diff'), test_cases)
+@pytest.mark.usefixtures("test_dir")
+@pytest.mark.parametrize(("configuration", "local_diff", "remote_diff"), test_cases)
 def test_babygitr(
-    configuration: Union[Dict[str, str], str], local_diff: str, remote_diff: str, test_dir
+    configuration: Union[Dict[str, str], str],
+    local_diff: str,
+    remote_diff: str,
+    test_dir,
 ):
     """This is an integration test that simulates an entire workflow."""
     ################################################################

@@ -15,6 +15,7 @@ Default Configuration
     "remote_url": "",
     "sync_configuration": {
         "dir": ".",
+        "ignore": null,
         "observation_frequency": 30,
         "sync_frequency": 120
     }
@@ -32,6 +33,7 @@ Default Configuration
     "remote_url": "",
     "sync_configuration": {
         "dir": ".",
+        "ignore": null,
         "observation_frequency": 30,
         "sync_frequency": 120
     }
@@ -42,11 +44,7 @@ Default Configuration
 """
 import time
 import yaml
-from babygitr.repowatcher import (
-    init_repo,
-    set_remote,
-    create_auth_callback
-)
+from babygitr.repowatcher import init_repo, set_remote, create_auth_callback
 from schema import Optional as SchemaOptional, Schema
 from typing import Dict, List, Optional, Union
 
@@ -61,10 +59,7 @@ default_configuration = Schema(
         SchemaOptional("branch_name", default="babygitr_managed_branch"): str,
         SchemaOptional(
             "auth_configuration",
-            default=lambda: {
-                'username': 'Kilroy',
-                'password': 'secret'
-            }
+            default=lambda: {"username": "Kilroy", "password": "secret"},
         ): {
             # This
             SchemaOptional("username"): str,
@@ -78,17 +73,17 @@ default_configuration = Schema(
         SchemaOptional(
             "sync_configuration",
             default=lambda: {
-                'dir': '.',
+                "dir": ".",
                 "observation_frequency": 30,
-                'sync_frequency': 120,
-                "ignore": None
-            }
+                "sync_frequency": 120,
+                "ignore": None,
+            },
         ): {
-            SchemaOptional("dir", default='.'): str,
+            SchemaOptional("dir", default="."): str,
             SchemaOptional("observation_frequency", default=30): int,
             SchemaOptional("sync_frequency", default=120): int,
             SchemaOptional("ignore", default=None): [str],
-        }
+        },
     }
 )
 
@@ -103,6 +98,7 @@ class BabyGitr:
     config: _config_type
         A configuration object for BabyGitr.
     """
+
     def __init__(self, config: Optional[Union[str, _config_type]] = None) -> None:
         ############################################################
         #                       Validate Config                    #
@@ -132,27 +128,27 @@ class BabyGitr:
         set_remote(
             local_repo=self._repository,
             remote_name=self._config["remote_name"],
-            remote_url=self._config["branch_name"]
+            remote_url=self._config["branch_name"],
         )
         self._auth_callable = create_auth_callback(
-            local_repo=self._repository
+            auth_config=self._config["auth_configuration"]
         )
         # Is there any initial setup that needs to be done in terms of files?
         self.sync()
 
-    def generate_config(self):
+    def generate_config(self) -> None:
         """Dump out a default configuration."""
         raise NotImplementedError
 
-    def sync(self):
+    def sync(self) -> None:
         raise NotImplementedError
 
 
-def parse_cli():
+def parse_cli() -> None:
     raise NotImplementedError
 
 
-def main():
+def main() -> None:
     """Runs the baby-gitting loop"""
     ################################################################
     #                          Parse Input                         #
@@ -160,7 +156,9 @@ def main():
     # Here we're observing the input from the command line. This   #
     #   information will be reused later.                          #
     ################################################################
-    application_configuration: Union[str, Dict[str, Union[str, int, Dict[str, List[str]]]], None] = parse_cli()
+    application_configuration: Union[
+        str, Dict[str, Union[str, int, Dict[str, List[str]]]], None
+    ] = parse_cli()
     # Now we use that information to create a BabyGitr
     repo_watcher: "BabyGitr" = BabyGitr(config=application_configuration)
     ################################################################
@@ -172,19 +170,21 @@ def main():
     #   updates regardless. If we're allowed to commit to the      #
     #   remote then we will be doing that as well!                 #
     ################################################################
-    sync_t = application_configuration['sync_configuration']['sync_frequency']
-    observe_t = application_configuration['sync_configuration']['observation_frequency']
+    sync_t = application_configuration["sync_configuration"]["sync_frequency"]
+    observe_t = application_configuration["sync_configuration"]["observation_frequency"]
     while True:
         _t = min(sync_t, observe_t)
         time.sleep(_t)
         if _t == sync_t:
             repo_watcher.sync()
             observe_t -= _t
-            sync_t = application_configuration['sync_configuration']['sync_frequency']
+            sync_t = application_configuration["sync_configuration"]["sync_frequency"]
         elif _t == observe_t:
             repo_watcher.sync()
             sync_t -= _t
-            observe_t = application_configuration['sync_configuration']['observation_t_frequency']
+            observe_t = application_configuration["sync_configuration"][
+                "observation_t_frequency"
+            ]
 
 
 if __name__ == "__main__":

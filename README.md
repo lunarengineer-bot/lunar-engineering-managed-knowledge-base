@@ -5,8 +5,8 @@ This will grow into something more formalized over time, but this is currently a
 This provides basic API to:
 
 * Create and maintain a local repository with a specific branch
-* Link that to a remote (potentially nonexisting) repository in GitHub.
-* One-time authenticate with GitHub to generate secure communication tokens.
+* Link that to a remote repository..
+* Authenticate with a git server using either password or key based authentication.
 * Sync the local to the remote; if this process is unable to reconcile the upstream and the local data the local data is discarded and replaced with the upstream.
 
 ## Development
@@ -17,6 +17,8 @@ Open this with VSCode as a development container and the dev documents will get 
 
 Running tox will run the testing suite that validates the code is doing what it's doing *and* publishes documentation!
 
+It will spin up a docker container in the background which is used as a remote git server.
+
 Digging into the tests in test_babygitr at the highest level will show an integration test which is a pretty good example of how to use this.
 
 Do you want to see the test output in an easy to consume way? Why not just start the dev container and navigate to localhost:8090 where a local web server should be running. If things have been dumped out there, you will be able to find them! (If the server isn't started for some reason you can just run `python3 -m http.server 8090 --directory=/project/reports &` after running the tests.)
@@ -25,8 +27,8 @@ So, to cut to the chase, to run the testing suite try `tox -p`. You can be a lot
 
 
 TODO: 
-[ ] RepoWatcher authentication
-[ ] RepoWatcher Sync local and remote
+[x] RepoWatcher authentication
+[x] RepoWatcher Sync local and remote
 [ ] BabyGitr stateful object
 [ ] Main Loop
 [ ] Validate testing suite fully passes

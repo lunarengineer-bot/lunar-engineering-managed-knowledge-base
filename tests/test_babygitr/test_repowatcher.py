@@ -16,8 +16,12 @@ from typing import Dict
 #   identified.                                                    #
 ####################################################################
 test_cases = [
-    dict(local_path="local", branch="knowledge_base", remote_path=None),
-    dict(local_path="upstream", branch="fried_cheese", remote_path="test_project"),
+    dict(local_path="local", branch="knowledge_branch", remote_path=None),
+    dict(
+        local_path="upstream",
+        branch="fried_cheese",
+        remote_path=os.path.join(os.getenv("gitserver_HOST"), "/git_repo"),
+    ),
 ]
 
 
@@ -42,10 +46,6 @@ def repo_instance(request, test_dir) -> Repository:
 
 ####################################################################
 #                      Setting the Remote                          #
-# ---------------------------------------------------------------- #
-# The section below lays out happy and sad path testing for        #
-#   connecting a local project with an upstream remote. At the end #
-#   it declares an updated fixture appropriately set to the remote.#
 ####################################################################
 
 
@@ -63,50 +63,51 @@ def test_happy_path_set_remote(test_dir: str, repo_instance: Repository):
 
 test_auths = [
     # I can set user pass
-    {
-        'username': 'lunarengineer-bot',
-        'password': 'Hah. No.'
-    },
+    {"username": "lunarengineer-bot", "password": "Hah. No."},
     # I can set GPG key
     {
-        'username': 'git',
-        'pubkey': '/babygitrsecrets/id_rsa.pub',
-        'privkey': '/babygitrsecrets/id_rsa',
+        "username": "git",
+        "pubkey": "/babygitrsecrets/id_rsa.pub",
+        "privkey": "/babygitrsecrets/id_rsa",
     },
     # With a passphase!
     {
-        'username': 'git',
-        'pubkey': '/babygitrsecrets/id_rsa.pub',
-        'privkey': '/babygitrsecrets/id_rsa',
-        'passphrase': 'super secret'
-    }
+        "username": "git",
+        "pubkey": "/babygitrsecrets/id_rsa.pub",
+        "privkey": "/babygitrsecrets/id_rsa",
+        "passphrase": "super secret",
+    },
 ]
 
 
-@pytest.mark.parametrize(('auth_config'), test_auths)
+@pytest.mark.parametrize(("auth_config"), test_auths)
 def test_auth_callback(auth_config: Dict[str, str]):
-    assert isinstance(
-        br.create_auth_callback(auth_config), pygit2.RemoteCallbacks
-    )
+    assert isinstance(br.create_auth_callback(auth_config), pygit2.RemoteCallbacks)
 
 
 @pytest.mark.usefixtures("repo_instance")
 def test_happy_path_sync_repo(repo_instance: Repository):
     # Add a file
-    repo_dir = repo_instance.path.replace('.git/', '')
-    stupid_file = os.path.join(repo_dir, 'stupid.file')
+    repo_dir = repo_instance.path.replace(".git/", "")
+    stupid_file = os.path.join(repo_dir, "stupid.file")
     # raise Exception(f"""
     # {stupid_file}
     # {repo_dir}
     # """)
-    with open(stupid_file, 'w') as f:
-        f.writelines(['stupidlines'])
+    with open(stupid_file, "w") as f:
+        f.writelines(["stupidlines"])
     br.sync_repo(
         local_repo=repo_instance,
-        author=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
-        committer=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
-        branch='knowledge_branch',
-        auth_config=None
+        author=pygit2.Signature("BabyGitr", "babygitr@nomail.com"),
+        committer=pygit2.Signature("BabyGitr", "babygitr@nomail.com"),
+        branch="knowledge_branch",
+        auth_config={"username": "steve", "password": "steve"},
     )
-    # raise Exception(os.listdir(repo_dir))
-    raise Exception(os.listdir(repo_instance.remotes["origin"].url))
+    raise Exception(
+        f"""
+    repo dir: {repo_dir}
+    repo dir contents: {os.listdir(repo_dir)}
+    origin url: {repo_instance.remotes["origin"].url}
+    origin url contents: {os.listdir(repo_instance.remotes["origin"].url)}
+    """
+    )

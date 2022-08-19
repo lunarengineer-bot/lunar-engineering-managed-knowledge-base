@@ -47,10 +47,10 @@ def _add_changes(
     repo: pygit2.Repository,
     author: pygit2.Signature,
     committer: pygit2.Signature,
-    ref: str = 'HEAD',
-    message: str = 'Initial commit.',
+    ref: str = "HEAD",
+    message: str = "Initial commit.",
     parents: Optional[List[str]] = None,
-    changes: Optional[Any] = None
+    changes: Optional[Any] = None,
 ) -> pygit2.Repository:
     # When this needs to be a little more intelligent and do
     #   targeted commits it may use repo.status() `git status`.
@@ -92,8 +92,8 @@ def _new_repo(local_path: str) -> pygit2.Repository:
     # Add all the files we're going to watch to start.
     _add_changes(
         repo=repo,
-        author=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
-        committer=pygit2.Signature('BabyGitr', 'babygitr@nomail.com'),
+        author=pygit2.Signature("BabyGitr", "babygitr@nomail.com"),
+        committer=pygit2.Signature("BabyGitr", "babygitr@nomail.com"),
     )
     return repo
 
@@ -179,7 +179,7 @@ def init_repo(
         #   a blank project.
         logger.warn("No remote assigned. I'll still babysit your work!")
         # First, does a repo exist locally?
-        if os.path.exists(os.path.join(local_path, '.git')):
+        if os.path.exists(os.path.join(local_path, ".git")):
             repo = pygit2.init_repository(
                 path=local_path,
             )
@@ -242,9 +242,7 @@ Please select from the sets below and pass a full set of parameters.
 """
 
 
-def create_auth_callback(
-    auth_config: Dict[str, str]
-) -> pygit2.RemoteCallbacks:
+def create_auth_callback(auth_config: Dict[str, str]) -> pygit2.RemoteCallbacks:
     """Return an authentication callback.
 
     This returns a callable object that may be used in pygit2
@@ -288,23 +286,22 @@ def create_auth_callback(
     <BLANKLINE>
     """
     _auth_config = auth_config.copy()
-    userpass = set(_auth_config) == {'username', 'password'}
-    keypair = (
-        set(_auth_config) == {'username', 'pubkey', 'privkey', 'passphrase'}
-        or
-        set(_auth_config) == {'username', 'pubkey', 'privkey'}
-    )
+    userpass = set(_auth_config) == {"username", "password"}
+    keypair = set(_auth_config) == {
+        "username",
+        "pubkey",
+        "privkey",
+        "passphrase",
+    } or set(_auth_config) == {"username", "pubkey", "privkey"}
     if userpass:
         auth_func = pygit2.UserPass(**_auth_config)
     elif keypair:
-        if 'passphrase' not in _auth_config:
-            _auth_config['passphrase'] = ''
+        if "passphrase" not in _auth_config:
+            _auth_config["passphrase"] = ""  # nosec - This is not confidential...
         auth_func = pygit2.Keypair(**_auth_config)
     else:
         raise NotImplementedError()
-    return pygit2.RemoteCallbacks(
-        credentials=auth_func
-    )
+    return pygit2.RemoteCallbacks(credentials=auth_func)
 
 
 def sync_repo(
@@ -312,7 +309,7 @@ def sync_repo(
     author: pygit2.Signature,
     committer: pygit2.Signature,
     branch: str,
-    auth_config: Optional[Dict[str, str]]
+    auth_config: Optional[Dict[str, str]],
 ) -> None:
     """Sync files, potentially with the remote repository.
 
@@ -333,24 +330,25 @@ def sync_repo(
         This is a dictionary with either the information for using
         either username/password or GPG.
     """
+    # Go ahead and add all the tracked changes.
     _add_changes(
         repo=local_repo,
         author=author,
         committer=committer,
         ref=local_repo.head.name,
-        message='chore(babygitr): sync',
+        message="chore(babygitr): sync",
         parents=[local_repo.head.target],
     )
-    # Now we push/pull? Does this work?
+    # If there's no auth config then we're done!w
     if auth_config is None:
         return None
 
     # Test the connection
-    local_repo.remotes['origin'].connect(
+    local_repo.remotes["origin"].connect(
         callbacks=create_auth_callback(auth_config=auth_config)
     )
     # Determine if the desired branch is upstream
-    local_repo.remotes['origin'].push(
+    local_repo.remotes["origin"].push(
         [local_repo.lookup_reference_dwim(branch).name],
-        callbacks=create_auth_callback(auth_config=auth_config)
+        callbacks=create_auth_callback(auth_config=auth_config),
     )
