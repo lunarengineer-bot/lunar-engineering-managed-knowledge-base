@@ -10,3 +10,11 @@ class BabyGitrBaseException(Exception):
     def __init__(self, message: str = "") -> None:
         self.message = f"""BabyGitrBaseException\n{message}"""
         super().__init__(self.message)
+
+
+class BabyGitrConnectionError(BabyGitrBaseException):
+    """Used to denote an incapability to connect."""
+
+    def __init__(self, message: str = "") -> None:
+        self.message = f"""BabyGitrConnectionError\n{message}"""
+        super().__init__(self.message)

@@ -1,14 +1,15 @@
-"""Monitors a potentially existent git repository.
+"""Monitors a local git repository with a potential upstream.
 
-This uses functionality which exists in GitPython
-https://gitpython.readthedocs.io/en/stable/tutorial.html
+This uses pygit2 for basic git hooks.
 """
 import logging
 import os
 import pygit2
+import subprocess
 from babygitr import _error as b_e
 from schema import Schema, Use
 from typing import Any, Dict, List, Optional
+
 
 logger = logging.getLogger(__name__)
 
@@ -16,31 +17,59 @@ __SYNC_FREQUENCY__ = 0
 __LOG_FREQUENCY__ = 0
 
 
-def _remote_exists(remote: str) -> str:
-    """Return True if remote exists and can be accessed.
+def _standardized_validated_path(url: str) -> str:
+    """Return standardized and guaranteed to exist path.
+
+    This will take a path you throw at it (google.com, git@whatever)
+    and it will produce an intelligently formatted standard string
+    which is guaranteed to 'exist'. If it's a remote url it will
+    test to determine if it can touch that url using the requests
+    library. If it's a local path it will test to see if that file
+    exists locally. If it doesn't know ahead of time (say you ask
+    it to talk to www.google.com/whatever then it will test both
+    remote and local existence and will favor secure remote over
+    any other.
 
     Parameters
     ----------
-    remote: str
-        A string representing the path to a remote repository.
+
+    url: str
+        An arbitrary path (internet or local) which might contain a
+        'scheme' (http, https, file) as a prefix, i.e. file://location.
 
     Returns
     -------
-    remote: str
-        A validated string representing the path to a remote.
+    url: str
+        That url potentially updated with a scheme prefix.
 
     Examples
     --------
-    >>> import pytest
-    >>> from babygitr._error import BabyGitrBaseException
-    >>> with pytest.raises(BabyGitrBaseException, match='Unable to connect'):
-    ...     _remote_exists('/stupidexample')
+    >>> _standardized_validated_path('google.com')
+    'https://google.com'
+    >>> _standardized_validated_path('http://www.google.com')
+    'http://www.google.com'
     """
-    # Can git connect to this as a remote?
-    _remote = pygit2.discover_repository(remote)
-    if _remote is None:
-        raise b_e.BabyGitrBaseException(f"Unable to connect to remote {_remote}")
-    return _remote
+    # This is way easier than any other way I tried.
+    if url.startswith('git'):
+        test_url = 'https://' + url.replace('git@', '').replace(':', '/', 1)
+        logger.warning("BabyGitr: I coerced your url from git@ to http for testing.")
+    else:
+        test_url = url
+    try:
+        # Some day capture output could prove useful.
+        # Here, it just doesn't hurt.
+        _ = subprocess.run([f'git ls-remote {test_url}'], shell=True, check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        raise b_e.BabyGitrConnectionError(f"""Unable to connect to {test_url}:
+
+        I am unable to `git ls-remotes` on your git repository, which
+        means that I probably can't even *see* your git repository.
+        Are you on a closed network? Is there a typo in your URL?
+        """) from e
+    except BaseException as e:
+        raise b_e.BabyGitrBaseException("""Unhandled Error:
+        This requires BabyGitr development intervention.""") from e
+    return url
 
 
 def _add_changes(
@@ -159,7 +188,7 @@ def init_repo(
         # Down this leg we have a true remote to work with.
         # We'll just clone that one down!
         # This validates the repo exists and can be connected to.
-        remote_path = Schema(Use(_remote_exists)).validate(remote_path)
+        remote_path = Schema(Use(_standardized_validated_path)).validate(remote_path)
         # This makes the folder if it doesn't exist.
         os.makedirs(local_path, exist_ok=True)
         # This clones down, breaks if it exists, and tries to lay a git repo

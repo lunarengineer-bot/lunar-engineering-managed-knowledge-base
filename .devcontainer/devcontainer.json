@@ -22,14 +22,14 @@
 	],
 
 	// Uncomment the next line to run commands after the container is created - for example installing curl.
-	"postCreateCommand": "pip install -e .[test] && mkdir -p /project/reports/ && cp tests/test_site_assets/* /project/reports/",
+	"postCreateCommand": "apk add npm && npm install --save-dev git-http-mock-server && pip install -e .[test] && mkdir -p /project/reports/ && cp tests/test_site_assets/* /project/reports/",
 	"postStartCommand": "python3 -m http.server 8090 --directory=/project/reports",
 	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
 	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
 
 	"mounts": [
 		// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
-		// "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
 		// This is where the testing environments will be dumped.
 		"source=babygitrproject,target=/project,type=volume",
 		// This is where the extensions will be dumped.
@@ -38,5 +38,5 @@
 		"source=babygitrsecrets,target=/babygitrsecrets,type=volume"
 	]
 	// Uncomment to connect as a non-root user if you've added one. See https://aka.ms/vscode-remote/containers/non-root.
-	// "remoteUser": "vscode"
+	// "remoteUser": "vscode"4fc4ee00072f926fd78f8d3858c1f7b6219682eaceeedc07d68b29e45c48c560
 }

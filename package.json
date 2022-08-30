@@ -1,0 +1,26 @@
+{
+  "name": "lunar-engineering-managed-knowledge-base",
+  "version": "1.0.0",
+  "description": "Jointly share learning",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "tox -p"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lunarengineer-bot/lunar-engineering-managed-knowledge-base.git"
+  },
+  "author": "Lunar Engineering",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lunarengineer-bot/lunar-engineering-managed-knowledge-base/issues"
+  },
+  "homepage": "https://github.com/lunarengineer-bot/lunar-engineering-managed-knowledge-base#readme",
+  "devDependencies": {
+    "git-http-mock-server": "^2.0.0"
+  }
+}

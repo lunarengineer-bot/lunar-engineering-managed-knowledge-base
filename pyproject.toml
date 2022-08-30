@@ -28,7 +28,6 @@ test = [
     # Packaging and testing
     "tox==3.25.0",
     "wheel==0.37.1",
-    "tox-docker==3.1.0",
     # Pytest
     "pytest==7.1.2",
     "pytest-cov==3.0.0",
