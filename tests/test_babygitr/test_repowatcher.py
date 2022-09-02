@@ -70,39 +70,22 @@ def test__standardized_validated_path(path: str, expectation: bool) -> bool:
 
 
 test_cases_remote = [
-    ('http://www.obviouslymadeupbadwebsite.git', b_e.BabyGitrConnectionError, 'Is there a typo in your URL?')
+    (
+        "http://www.obviouslymadeupbadwebsite.git",
+        b_e.BabyGitrConnectionError,
+        "Is there a typo in your URL?",
+    )
 ]
 
 
-@pytest.mark.parametrize(('url', 'exception', 'error_match'), test_cases_remote)
+@pytest.mark.parametrize(("url", "exception", "error_match"), test_cases_remote)
 def test__standardized_validated_path_errors(
-    url: str,
-    exception: b_e.BabyGitrBaseException,
-    error_match: str
+    url: str, exception: b_e.BabyGitrBaseException, error_match: str
 ):
     with pytest.raises(exception, match=error_match):
         br._standardized_validated_path(url)
 
 
-# @pytest.mark.usefixtures("test_dir")
-# def test_git_server(test_dir):
-#     """This tests the test server.
-
-#     This validates that the server can be connected to.
-#     """
-#     # This is supposed to be an http server, so we should be able to
-#     #   fire off an http request.
-#     # import socket
-#     # raise Exception(socket.gethostname())
-#     with open('/etc/hosts', 'r') as f:
-#         hosts = f.readlines()
-#     pygit2.clone_repository(
-#         url='http://localhost:8174/test_project.git',
-#         path=os.path.join(test_dir, 'test_repo')
-#     )
-#     raise Exception(os.listdir(test_dir))
-#     a = requests.head()
-#     raise Exception(a)
 ####################################################################
 #                      Making Repositories                         #
 # ---------------------------------------------------------------- #
@@ -140,21 +123,23 @@ def repo_instance(request, test_dir) -> Repository:
 
 def test_thing(repo_instance):
     assert True
+
+
 ####################################################################
 #                      Setting the Remote                          #
 ####################################################################
 
 
-# @pytest.mark.usefixtures("test_project")
-# @pytest.mark.usefixtures("test_dir")
-# @pytest.mark.usefixtures("repo_instance")
-# def test_happy_path_set_remote(test_dir: str, repo_instance: Repository):
-#     """Test set_remote happy path."""
-#     br.set_remote(
-#         local_repo=repo_instance, remote_url=os.path.join(test_dir, "test_project")
-#     )
-#     assert repo_instance.remotes["origin"].name == "origin"
-#     assert repo_instance.remotes["origin"].url == os.path.join(test_dir, "test_project")
+@pytest.mark.usefixtures("test_project")
+@pytest.mark.usefixtures("test_dir")
+@pytest.mark.usefixtures("repo_instance")
+def test_happy_path_set_remote(test_dir: str, repo_instance: Repository):
+    """Test set_remote happy path."""
+    br.set_remote(
+        local_repo=repo_instance, remote_url=os.path.join(test_dir, "test_project")
+    )
+    assert repo_instance.remotes["origin"].name == "origin"
+    assert repo_instance.remotes["origin"].url == os.path.join(test_dir, "test_project")
 
 
 # test_auths = [

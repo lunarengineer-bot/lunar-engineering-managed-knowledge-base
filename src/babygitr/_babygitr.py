@@ -49,7 +49,7 @@ from babygitr.repowatcher import (
     set_remote,
     create_auth_callback,
     _add_changes,
-    _standardized_validated_path
+    _standardized_validated_path,
 )
 from schema import Optional as SchemaOptional, Schema
 from typing import Dict, List, Optional, Union

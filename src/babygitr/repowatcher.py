@@ -20,22 +20,16 @@ __LOG_FREQUENCY__ = 0
 def _standardized_validated_path(url: str) -> str:
     """Return standardized and guaranteed to exist path.
 
-    This will take a path you throw at it (google.com, git@whatever)
-    and it will produce an intelligently formatted standard string
-    which is guaranteed to 'exist'. If it's a remote url it will
-    test to determine if it can touch that url using the requests
-    library. If it's a local path it will test to see if that file
-    exists locally. If it doesn't know ahead of time (say you ask
-    it to talk to www.google.com/whatever then it will test both
-    remote and local existence and will favor secure remote over
-    any other.
+    This will take a path you throw at it which represents a git
+    repository; this will validate that git is able to *see* your
+    remote and will return the string. This is useful in Schema
+    validation.
 
     Parameters
     ----------
 
     url: str
-        An arbitrary path (internet or local) which might contain a
-        'scheme' (http, https, file) as a prefix, i.e. file://location.
+        An arbitrary path (internet or local) representing a git repository.
 
     Returns
     -------
@@ -44,31 +38,37 @@ def _standardized_validated_path(url: str) -> str:
 
     Examples
     --------
-    >>> _standardized_validated_path('google.com')
-    'https://google.com'
-    >>> _standardized_validated_path('http://www.google.com')
-    'http://www.google.com'
+    >>> _standardized_validated_path('https://github.com/lunarengineer-bot/lunar-engineering-managed-knowledge-base')
+    'https://github.com/lunarengineer-bot/lunar-engineering-managed-knowledge-base'
+    >>> _standardized_validated_path('git@github.com:lunarengineer-bot/lunar-engineering-managed-knowledge-base.git')
+    'git@github.com:lunarengineer-bot/lunar-engineering-managed-knowledge-base.git'
     """
     # This is way easier than any other way I tried.
-    if url.startswith('git'):
-        test_url = 'https://' + url.replace('git@', '').replace(':', '/', 1)
+    if url.startswith("git"):
+        test_url = "https://" + url.replace("git@", "").replace(":", "/", 1)
         logger.warning("BabyGitr: I coerced your url from git@ to http for testing.")
     else:
         test_url = url
     try:
         # Some day capture output could prove useful.
         # Here, it just doesn't hurt.
-        _ = subprocess.run([f'git ls-remote {test_url}'], shell=True, check=True, capture_output=True)
+        _ = subprocess.run(
+            [f"git ls-remote {test_url}"], shell=True, check=True, capture_output=True
+        )
     except subprocess.CalledProcessError as e:
-        raise b_e.BabyGitrConnectionError(f"""Unable to connect to {test_url}:
+        raise b_e.BabyGitrConnectionError(
+            f"""Unable to connect to {test_url}:
 
         I am unable to `git ls-remotes` on your git repository, which
         means that I probably can't even *see* your git repository.
         Are you on a closed network? Is there a typo in your URL?
-        """) from e
+        """
+        ) from e
     except BaseException as e:
-        raise b_e.BabyGitrBaseException("""Unhandled Error:
-        This requires BabyGitr development intervention.""") from e
+        raise b_e.BabyGitrBaseException(
+            """Unhandled Error:
+        This requires BabyGitr development intervention."""
+        ) from e
     return url
 
 
