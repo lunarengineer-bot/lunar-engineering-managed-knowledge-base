@@ -1,9 +1,8 @@
 """Tests the repo watcher."""
 import os
+from random import random
 import pygit2
 import pytest
-import requests
-import socket
 from babygitr import repowatcher as br, _error as b_e
 from pygit2 import Repository
 from typing import Dict
@@ -19,6 +18,7 @@ from typing import Dict
 #   all listed so that it's understood they may be introduced in   #
 #   testing and will be understood by the testing suite.           #
 ####################################################################
+__REMOTE_PATH__ = "http://127.0.0.1:8174/test_project.git"
 
 
 @pytest.fixture
@@ -48,6 +48,23 @@ def git_server_config():
 #   documenting the whole shebang. Sweet.                          #
 ####################################################################
 
+
+test_cases = [
+    (
+        __REMOTE_PATH__, {
+            'HEAD': 'fb00629148993ef01fd17727a7ab5ce4161dc1c5',
+            'refs/heads/main': 'fb00629148993ef01fd17727a7ab5ce4161dc1c5'
+        }
+    ),
+    ('stupidexample', {})
+]
+
+
+@pytest.mark.parametrize(('url', 'expected_out'), test_cases)
+def test_get_remotes(url: str, expected_out: Dict[str, str]) -> None:
+    assert br.get_remotes(url, allow_failure=True) == expected_out
+
+
 test_cases = [
     (
         "https://github.com/lunarengineer-bot/lunar-engineering-managed-knowledge-base.git",
@@ -58,8 +75,8 @@ test_cases = [
         "git@github.com:lunarengineer-bot/lunar-engineering-managed-knowledge-base.git",
     ),
     (
-        "http://localhost:8174/test_project.git",
-        "http://localhost:8174/test_project.git",
+        __REMOTE_PATH__,
+        __REMOTE_PATH__,
     ),
 ]
 
@@ -94,101 +111,112 @@ def test__standardized_validated_path_errors(
 #   created *with* a remote identified and one *without* a remote  #
 #   identified.                                                    #
 ####################################################################
-test_cases = [
-    dict(local_path="local", branch="knowledge_branch", remote_path=None),
-    dict(
-        local_path="upstream",
-        branch="knowledge_branch",
-        # This Tom-foolery is required for the testing suite.
-        remote_path="http://127.0.0.1:8174/test_project.git",
-    ),
-]
 
 
-@pytest.mark.usefixtures("test_project")
-@pytest.fixture(params=test_cases, ids=["local", "upstream"])
-def repo_instance(request, test_dir) -> Repository:
-    """Test make_repo happy path.
-
-    This takes the test directory and parametrizes that fixture.
-    """
-    # Copy the inputs.
-    input_dict = request.param.copy()
-    # Update the local path to be in the temporary directory.
-    input_dict["local_path"] = os.path.join(test_dir, input_dict["local_path"])
-    repo = br.init_repo(**input_dict)
-    assert isinstance(repo, Repository)
-    return repo
-
-
-def test_thing(repo_instance):
-    assert True
-
-
-####################################################################
-#                      Setting the Remote                          #
-####################################################################
-
-
-@pytest.mark.usefixtures("test_project")
-@pytest.mark.usefixtures("test_dir")
-@pytest.mark.usefixtures("repo_instance")
-def test_happy_path_set_remote(test_dir: str, repo_instance: Repository):
-    """Test set_remote happy path."""
-    br.set_remote(
-        local_repo=repo_instance, remote_url=os.path.join(test_dir, "test_project")
-    )
-    assert repo_instance.remotes["origin"].name == "origin"
-    assert repo_instance.remotes["origin"].url == os.path.join(test_dir, "test_project")
-
-
-# test_auths = [
-#     # I can set user pass
-#     {"username": "lunarengineer-bot", "password": "Hah. No."},
-#     # I can set GPG key
-#     {
-#         "username": "git",
-#         "pubkey": "/babygitrsecrets/id_rsa.pub",
-#         "privkey": "/babygitrsecrets/id_rsa",
-#     },
-#     # With a passphase!
-#     {
-#         "username": "git",
-#         "pubkey": "/babygitrsecrets/id_rsa.pub",
-#         "privkey": "/babygitrsecrets/id_rsa",
-#         "passphrase": "super secret",
-#     },
+# test_cases = [
+#     dict(local_path="local", branch="knowledge_branch", remote_path=None),
+#     dict(
+#         local_path="upstream",
+#         branch="knowledge_branch",
+#         # This Tom-foolery is required for the testing suite.
+#         remote_path=__REMOTE_PATH__,
+#     ),
 # ]
 
 
-# @pytest.mark.parametrize(("auth_config"), test_auths)
-# def test_auth_callback(auth_config: Dict[str, str]):
-#     assert isinstance(br.create_auth_callback(auth_config), pygit2.RemoteCallbacks)
+# @pytest.mark.usefixtures("test_project")
+# @pytest.fixture(params=test_cases, ids=["local", "upstream"])
+# def test_repo(request, test_dir) -> Repository:
+#     """Test make_repo happy path.
 
-
-# @pytest.mark.usefixtures("repo_instance", "test_project")
-# def test_happy_path_sync_repo(repo_instance: Repository, test_project):
-#     # Add a file
-#     repo_dir = repo_instance.path.replace(".git/", "")
-#     stupid_file = os.path.join(repo_dir, "stupid.file")
-#     # raise Exception(f"""
-#     # {stupid_file}
-#     # {repo_dir}
-#     # """)
-#     with open(stupid_file, "w") as f:
-#         f.writelines(["stupidlines"])
-#     br.sync_repo(
-#         local_repo=repo_instance,
-#         author=pygit2.Signature("BabyGitr", "babygitr@nomail.com"),
-#         committer=pygit2.Signature("BabyGitr", "babygitr@nomail.com"),
-#         branch="knowledge_branch",
-#         auth_config={"username": "steve", "password": "steve"},
-#     )
-#     raise Exception(
-#         f"""
-#     repo dir: {repo_dir}
-#     repo dir contents: {os.listdir(repo_dir)}
-#     origin url: {repo_instance.remotes["origin"].url}
-#     origin url contents: {os.listdir(repo_instance.remotes["origin"].url)}
+#     This takes the test directory and parametrizes that fixture.
 #     """
-#     )
+#     # Copy the inputs.
+#     input_dict = request.param.copy()
+#     # Update the local path to be in the temporary directory.
+#     input_dict["local_path"] = os.path.join(test_dir, input_dict["local_path"])
+#     repo = br.init_repo(**input_dict)
+#     assert repo
+#     # assert isinstance(repo, Repository)
+#     # return repo
+
+
+# ####################################################################
+# #                      Setting the Remote                          #
+# ####################################################################
+# @pytest.mark.usefixtures("test_repo")
+# def test(test_repo):
+#     pass
+# # @pytest.mark.usefixtures("test_project")
+# # @pytest.mark.usefixtures("test_dir")
+# # @pytest.mark.usefixtures("repo_instance")
+# # def test_happy_path_set_remote(test_dir: str, repo_instance: Repository):
+# #     """Test set_remote happy path."""
+# #     br.set_remote(
+# #         local_repo=repo_instance, remote_url=__REMOTE_PATH__
+# #     )
+# #     assert repo_instance.remotes["origin"].name == "origin"
+# #     assert repo_instance.remotes["origin"].url == __REMOTE_PATH__
+
+
+# # test_auths = [
+# #     # I can set user pass
+# #     {"username": "test_user", "password": "test_password"},
+# #     # I can set GPG key
+# #     {
+# #         "username": "git",
+# #         "pubkey": "/babygitrsecrets/id_rsa.pub",
+# #         "privkey": "/babygitrsecrets/id_rsa",
+# #     },
+# #     # With a passphase!
+# #     {
+# #         "username": "git",
+# #         "pubkey": "/babygitrsecrets/id_rsa.pub",
+# #         "privkey": "/babygitrsecrets/id_rsa",
+# #         "passphrase": "super secret",
+# #     },
+# # ]
+
+
+# # @pytest.mark.parametrize(("auth_config"), test_auths)
+# # def test_auth_callback(auth_config: Dict[str, str]):
+# #     assert isinstance(br.create_auth_callback(auth_config), pygit2.RemoteCallbacks)
+
+
+# # @pytest.mark.usefixtures("repo_instance", "test_dir")
+# # def test_happy_path_sync_repo(repo_instance: Repository, test_dir):
+# #     ################################################################
+# #     #           Add a local file and push it to the remote.        #
+# #     ################################################################
+# #     # Get a random string for use as a non-overlapping filepath.
+# #     silly_name = str(round(random()*100000))
+# #     repo_dir = repo_instance.path.replace(".git/", "")
+# #     stupid_file = os.path.join(repo_dir, "stupid.file")
+# #     with open(stupid_file, "w") as f:
+# #         f.writelines(["stupidlines"])
+# #     old_refcount = repo_instance.remotes['origin'].refspec_count
+# #     br.sync_repo(
+# #         local_repo=repo_instance,
+# #         author=pygit2.Signature("BabyGitr", "babygitr@nomail.com"),
+# #         committer=pygit2.Signature("BabyGitr", "babygitr@nomail.com"),
+# #         branch="knowledge_branch",
+# #         auth_config={"username": "test_user", "password": "test_password"},
+# #     )
+# #     new_refcount = repo_instance.remotes['origin'].refspec_count
+# #     raise Exception(f"""
+# #     Old: {old_refcount}
+# #     New: {new_refcount}
+# #     Repo Description: {repo_instance.describe('knowledge_branch')}
+# #     """)
+# #     new_path = f"{test_dir}/{silly_name}"
+# #     pygit2.clone_repository(__REMOTE_PATH__, new_path, checkout_branch='knowledge_branch')
+# #     raise Exception(os.listdir(new_path))
+# #     raise Exception(
+# #         f"""
+# #     repo dir: {repo_dir}
+# #     repo dir contents: {os.listdir(repo_dir)}
+# #     origin url: {repo_instance.remotes["origin"].url}
+# #     origin url contents: {os.listdir(repo_instance.remotes["origin"].url)}
+# #     """
+# #     )
+# #     raise Exception(repo_instance.index.conflicts)

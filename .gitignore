@@ -3,3 +3,4 @@
 .coverage
 *libgit*
 node_modules*
+*testlog*
