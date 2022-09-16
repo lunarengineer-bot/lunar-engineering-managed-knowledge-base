@@ -1,10 +1,8 @@
 """Tests the repo watcher."""
 import os
 from random import random
-import pygit2
 import pytest
 from babygitr import repowatcher as br, _error as b_e
-from pygit2 import Repository
 from typing import Dict
 
 
@@ -18,7 +16,9 @@ from typing import Dict
 #   all listed so that it's understood they may be introduced in   #
 #   testing and will be understood by the testing suite.           #
 ####################################################################
-__REMOTE_PATH__ = "http://127.0.0.1:8174/test_project.git"
+__GIT_USER__ = os.getenv('GIT_HTTP_USER')
+__GIT_PASS__ = os.getenv('GIT_HTTP_PASSWORD')
+__REMOTE_PATH__ = f"http://{__GIT_USER__}:{__GIT_PASS__}@127.0.0.1:8174/test_project.git"
 
 
 @pytest.fixture
@@ -113,32 +113,32 @@ def test__standardized_validated_path_errors(
 ####################################################################
 
 
-# test_cases = [
-#     dict(local_path="local", branch="knowledge_branch", remote_path=None),
-#     dict(
-#         local_path="upstream",
-#         branch="knowledge_branch",
-#         # This Tom-foolery is required for the testing suite.
-#         remote_path=__REMOTE_PATH__,
-#     ),
-# ]
+test_cases = [
+    dict(local_path="local", branch="knowledge_branch", remote_path=None),
+    dict(
+        local_path="upstream",
+        branch="knowledge_branch",
+        # This Tom-foolery is required for the testing suite.
+        remote_path=__REMOTE_PATH__,
+    ),
+]
 
 
-# @pytest.mark.usefixtures("test_project")
-# @pytest.fixture(params=test_cases, ids=["local", "upstream"])
-# def test_repo(request, test_dir) -> Repository:
-#     """Test make_repo happy path.
+@pytest.mark.usefixtures("test_project")
+@pytest.fixture(params=test_cases, ids=["local", "upstream"])
+def test_repo(request, test_dir):
+    """Test make_repo happy path.
 
-#     This takes the test directory and parametrizes that fixture.
-#     """
-#     # Copy the inputs.
-#     input_dict = request.param.copy()
-#     # Update the local path to be in the temporary directory.
-#     input_dict["local_path"] = os.path.join(test_dir, input_dict["local_path"])
-#     repo = br.init_repo(**input_dict)
-#     assert repo
-#     # assert isinstance(repo, Repository)
-#     # return repo
+    This takes the test directory and parametrizes that fixture.
+    """
+    # Copy the inputs.
+    input_dict = request.param.copy()
+    # Update the local path to be in the temporary directory.
+    input_dict["local_path"] = os.path.join(test_dir, input_dict["local_path"])
+    repo = br.init_repo(**input_dict)
+    assert repo
+    # assert isinstance(repo, Repository)
+    # return repo
 
 
 # ####################################################################
