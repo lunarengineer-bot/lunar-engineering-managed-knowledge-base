@@ -159,16 +159,18 @@ def add_changes(
     change_globs: str = '.',
     author_string: str = __BABYGITR_MAIL__,
     message: str = "chore(babygitr): housekeeping",
-) -> pygit2.Repository:
+) -> bool:
     """Use a change in status to trigger a potentially targeted commit.
 
     This checks `git status` to determine if there are any files
     which have changed since the last time a 'save' operation was
     run.
 
-    If files have been modified, their changes will be tracked via
-    a commit with a formatted message; by default all changes are
-    tracked, this may be changed via `change_globs`.
+    If any changes have been made any which mach 'change_globs'
+    glob pattern (e.g. 'src*', 'src tests/specifictest') their
+    changes will be tracked via a commit with a formatted message;
+    by default all changes are tracked, this may be changed via
+    `change_globs`.
 
     This assumes it is being run in a git directory.
 
@@ -192,9 +194,8 @@ def add_changes(
     _ = subprocess.run(
         ["git status --short"], shell=True, check=True, capture_output=True
     )
-    # todo: fixme to real criteria if necessary.
     if not _.stdout:  # No changes
-        return 0  # All quiet on the Western front.
+        return True  # All quiet on the Western front.
 
     # This adds change_globs folders. This works with str, iterable str, and such,
     # Check into the documentation for git add and then pass whatever you want into it,
@@ -212,50 +213,50 @@ def add_changes(
     return True
 
 
-# def new_repo(
-#     local_path: str,
-#     change_globs: str = '.',
-#     author_string: str = __BABYGITR_MAIL__,
-#     default_branch: str = __BABYGITR_BRANCH__
-# ) -> bool:
-#     """Create a new local repository, with a default branch, from desired files.
+def new_repo(
+    local_path: str,
+    change_globs: str = '.',
+    author_string: str = __BABYGITR_MAIL__,
+    default_branch: str = __BABYGITR_BRANCH__
+) -> bool:
+    """Create a new local repository, with a default branch, from desired files.
 
-#     Parameters
-#     ----------
-#     local_path: str
-#         This is the filepath for the git repository.
-#     change_globs: str = '.'
-#         This allows for specifying 'only save these files'.
-#     author_string: str = __BABYGITR_MAIL__
-#         This is a way to change the author associated with the
-#         commit.
-#     default_branch: str = __BABYGITR_BRANCH__
-#         This is the default branch to instantiate.
+    Parameters
+    ----------
+    local_path: str
+        This is the filepath for the git repository.
+    change_globs: str = '.'
+        This allows for specifying 'only save these files'.
+    author_string: str = __BABYGITR_MAIL__
+        This is a way to change the author associated with the
+        commit.
+    default_branch: str = __BABYGITR_BRANCH__
+        This is the default branch to instantiate.
 
-#     Returns
-#     -------
-#     status: bool = True
-#     """
-#     # Start her up
-#     _ = subprocess.run(
-#         [f"git init {local_path}"], shell=True, check=True, capture_output=True
-#     )
-#     os.chdir(local_path)
-#     # Set the default branch
-#     _ = subprocess.run(
-#         [f"git config --global init.defaultBranch {default_branch}"], shell=True, check=True, capture_output=True
-#     )
-#     # Rename the current branch
-#     _ = subprocess.run(
-#         [f"git branch -m {default_branch}"], shell=True, check=True, capture_output=True
-#     )
-#     # Then go ahead and track everything at the desired paths.
-#     add_changes(
-#         change_globs=change_globs,
-#         author_string=author_string,
-#         message="chore(babygitr): initial",
-#     )
-#     return True
+    Returns
+    -------
+    status: bool = True
+    """
+    # Start her up
+    _ = subprocess.run(
+        [f"git init {local_path}"], shell=True, check=True, capture_output=True
+    )
+    os.chdir(local_path)
+    # Set the default branch
+    _ = subprocess.run(
+        [f"git config --global init.defaultBranch {default_branch}"], shell=True, check=True, capture_output=True
+    )
+    # Rename the current branch
+    _ = subprocess.run(
+        [f"git branch -m {default_branch}"], shell=True, check=True, capture_output=True
+    )
+    # Then go ahead and track everything at the desired paths.
+    add_changes(
+        change_globs=change_globs,
+        author_string=author_string,
+        message="chore(babygitr): initial",
+    )
+    return True
 
 
 # def init_repo(
