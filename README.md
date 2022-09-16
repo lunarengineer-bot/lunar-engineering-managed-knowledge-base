@@ -4,10 +4,16 @@ This will grow into something more formalized over time, but this is currently a
 
 This provides basic API to:
 
-* Create and maintain a local repository with a specific branch
-* Link that to a remote repository..
-* Authenticate with a git server using either password or key based authentication.
+* Create and maintain a local repository with a specific named branch.
+* Link that to a remote repository.
+* Modify the authentication method.
 * Sync the local to the remote; if this process is unable to reconcile the upstream and the local data the local data is discarded and replaced with the upstream.
+
+## Why Would You Do This? What Purpose Is There?
+
+Come have a long conversation with me where I ramble about heirarchical models and storing trajectories, about how git is the perfect vehicle for this data, and about how intertwined data and code versioning enables amazing patterns.
+
+Recording the state of an experiment at regular intervals (or tracking the work of a lazy scientist) has the benefit of formally sharing the work.
 
 ## Development
 
