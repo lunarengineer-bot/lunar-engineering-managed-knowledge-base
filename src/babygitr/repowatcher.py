@@ -94,8 +94,11 @@ def get_remotes(url: str, allow_failure: bool = False) -> Dict[str, str]:
             f"""Unable to connect to {url}:
 
         I am unable to `git ls-remote` on your git repository, which
-        means that I probably can't even *see* your git repository.
+        means that I either can't *see* your git repository, or you
+        have not set up authentication appropriately.
+
         Are you on a closed network? Is there a typo in your URL?
+        Do I have access?
 
         Command Run
         -----------\n{remote_string}
