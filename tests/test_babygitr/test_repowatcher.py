@@ -126,7 +126,7 @@ test_cases = [
 
 @pytest.mark.usefixtures("test_project")
 @pytest.fixture(params=test_cases, ids=["local", "upstream"])
-def test_repo(request, test_dir):
+def repo(request, test_dir):
     """Test make_repo happy path.
 
     This takes the test directory and parametrizes that fixture.
@@ -137,8 +137,12 @@ def test_repo(request, test_dir):
     input_dict["local_path"] = os.path.join(test_dir, input_dict["local_path"])
     repo = br.init_repo(**input_dict)
     assert repo
-    # assert isinstance(repo, Repository)
-    # return repo
+
+
+@pytest.mark.usefixtures('repo')
+def test_repo(repo):
+    """Allows the fixture to failure explicitly."""
+    pass
 
 
 # ####################################################################

@@ -41,6 +41,11 @@ def get_remotes(url: str, allow_failure: bool = False) -> Dict[str, str]:
     allow_failure: bool
         If allow_failure is on a failure will return `{}`
 
+    Raises
+    ------
+    invalid_repo: b_e.BabyGitrConnectionError
+        This will blow up if the path can't be seen.
+
     Examples
     --------
     >>> import pytest
@@ -126,7 +131,6 @@ def _standardized_validated_path(url: str) -> str:
 
     Parameters
     ----------
-
     url: str
         An arbitrary path (internet or local) representing a git repository.
 
@@ -135,6 +139,11 @@ def _standardized_validated_path(url: str) -> str:
     url: str
         That url potentially updated with a scheme prefix.
 
+    Raises
+    ------
+    invalid_repo: b_e.BabyGitrConnectionError
+        This will blow up if the path can't be seen.
+
     Examples
     --------
     >>> _standardized_validated_path('https://github.com/lunarengineer-bot/lunar-engineering-managed-knowledge-base')
@@ -142,6 +151,7 @@ def _standardized_validated_path(url: str) -> str:
     >>> _standardized_validated_path('git@github.com:lunarengineer-bot/lunar-engineering-managed-knowledge-base.git')
     'git@github.com:lunarengineer-bot/lunar-engineering-managed-knowledge-base.git'
     """
+    # TODO: Fix this. ls-remote works with ssh.
     # This is way easier than any other way I tried.
     if url.startswith("git"):
         test_url = "https://" + url.replace("git@", "").replace(":", "/", 1)
@@ -262,143 +272,230 @@ def new_repo(
     return True
 
 
-# def init_repo(
-#     local_path: str = ".",
-#     branch: str = "knowledge_base",
-#     remote_path: Optional[str] = None,
-#     change_globs: str = '.',
-#     author_string: str = __BABYGITR_MAIL__,
-#     default_branch: str = __BABYGITR_BRANCH__
-# ) -> bool:
-#     """Create a local repository.
+def init_repo(
+    local_path: str = ".",
+    branch: str = "knowledge_base",
+    remote_path: Optional[str] = None,
+    change_globs: str = '.',
+    author_string: str = __BABYGITR_MAIL__,
+    default_branch: str = __BABYGITR_BRANCH__
+) -> bool:
+    """Create a local repository.
 
-#     This does one of two things; if it's given a `remote_path` then
-#     it will attempt to clone that repository down, else it will create
-#     an empty repository at the local location.
+    This does one of two things; if it's given a `remote_path` then
+    it will attempt to clone that repository down, else it will create
+    an empty repository at the local location.
 
-#     This will set the working branch to `branch` (knowledge_base by
-#     default.)
+    This will set the working branch to `branch` (knowledge_base by
+    default.)
 
-#     This will also explode gently, letting you know if issues
-#     popped up.
+    This will also explode gently, letting you know if issues
+    popped up.
 
-#     What did I learn while doing this? pygit2 doesn't have good high
-#     level documentation.
+    Parameters
+    ----------
+    local_path: str
+        The local repository path.
+    branch: str
+        An optional branch to checkout to.
+    remote_path: Optional[str] = None
+        An optional remote url.
 
-#     Parameters
-#     ----------
-#     local_path: str
-#         The local repository path.
-#     branch: str
-#         An optional branch to checkout to.
-#     remote_path: Optional[str] = None
-#         An optional remote url.
+    Returns
+    -------
+    repo_status: bool
+        Whether or not the operation concluded successfully.
 
-#     Returns
-#     -------
-#     repo_status: bool
-#         Whether or not the operation concluded successfully.
+    Examples
+    --------
+    This is a simple example showcasing how to work with a local
+    directory.
 
-#     Examples
-#     --------
-#     This is a simple example showcasing how to work with a local
-#     directory.
+    >>> from tempfile import TemporaryDirectory
+    >>> with TemporaryDirectory() as t:
+    ...     local_repo = init_repo(f'{t}/.git', branch='test')
+    ...     type(local_repo)
+    <class 'bool'>
 
-#     >>> from tempfile import TemporaryDirectory
-#     >>> with TemporaryDirectory() as t:
-#     ...     local_repo = init_repo(f'{t}/.git', branch='test')
-#     ...     type(local_repo)
-#     <class 'bool'>
+    This is an example showcasing how to use with a 'local remote'
+    >>> with TemporaryDirectory() as t:
+    ...     remote_repo = init_repo(f'{t}/remote/.git', branch='test')
+    ...     local_repo = init_repo(
+    ...         local_path=f'{t}/local/.git',
+    ...         remote_path=f'{t}/remote/.git',
+    ...         branch='main',
+    ...     )
+    """
+    ################################################################
+    #                       Handling Remotes                       #
+    # ------------------------------------------------------------ #
+    # This entire section does validation of the remote, clones if #
+    #   required, and in the end the repo will have a remote!      #
+    # 1. Is there a local repo? Yes, go to 2. No, go to 3.         #
+    # 2. Is there a remote? Yes, go to 4. No, go to 5.             #
+    # 3. Is there a remote? Yes, go to 6. No, go to 7.             #
+    # 4. Validate that remote is correct. ~Set remote. Pull.       #
+    # 5. Do nothing but add changes.                               #
+    # 6. Clone.                                                    #
+    # 7. Create local repo w/ no remote.                           #
+    ################################################################
+    # List local branches, returns empty dict if no repo.
+    local_branches = get_remotes(local_path, allow_failure=True)
+    local_repo_exists = local_branches != {}
+    # Check if there's a current remote, returns empty str if no remote.
+    _ = subprocess.run(
+        [f"git config --get remote.origin.url {local_path}"],
+        shell=True, check=True, capture_output=True
+    )
+    local_remote = _.stdout
+    # Test if the passed remote (if passed) is valid.
+    if remote_path is not None:
+        # This fails explicitly if given bad input.
+        Schema(Use(_standardized_validated_path)).validate(remote_path)
+        remote_exists = True
+    else:
+        remote_exists = False
+    # Now we split four ways dependent on the remote and local.
+    if local_repo_exists and remote_exists:  # 4
+        # Does the repo already have a remote?
+        if local_remote:  # Yes, need to match the two.
+            if not remote_path == local_remote:
+                raise b_e.BabyGitrBaseException(f"""Remote Error:
+                \nRepo already has a remote!
+                \nDesired remote ({remote_path}) != Existing remote ({local_remote})
+                \nThis requires manual intervention.
+                """)
+        else:  # No, set remote if can.
+            # Validate an overlap in the branches
+            # Either my branch exists with a common comm
+            raise NotImplementedError
+            _ = subprocess.run(
+                [f"git remote set-url origin {remote_path}"],
+                shell=True, check=True, capture_output=True
+            )
+        # Now that the remote is good to go, run a targeted fetch.
+        raise NotImplementedError
+    elif local_repo_exists and not remote_exists:  # 5
+        # Here there's already a local project and no remote.
+        # Do nothing but track any new changes.
+        add_changes(
+            change_globs=change_globs,
+            author_string=author_string,
+            message='chore(babygitr): housekeeping'
+        )
+    elif not local_repo_exists and remote_exists:  # 6
+        # Validate that there are *NO* files locally.
+        # This is way easier than trying to match things up.
+        if os.path.exists(local_path):
+            if os.listdir(local_path):
+                raise b_e.BabyGitrBaseException("""Local Repo Create Failure:
+                \nI cannot create a local repo, files already exist!
+                """)
+        # No local project, but a remote? Time to clone!
+        try:
+            _ = subprocess.run(
+                [f"git clone {_remote_path} {local_path}"],
+                shell=True, check=True, capture_output=True
+            )
+        except Exception as e:
+            raise b_e.BabyGitrBaseException("""Clone Failure:
+            \nI tried to clone {_remote_path} into {local_path}.
+            \nIt didn't go well.
+            """) from e
+    elif not local_repo_exists and not remote_exists:  # 7
+        # No local *and* no remote?
+        # Make a new repo!
+        new_repo(
+            local_path=local_path,
+            change_globs=change_globs,
+            author_string=author_string,
+            default_branch=default_branch,
+        )
+#     # What is our 'local' remote?
+#     # Now list the remotes there.
+    
+#     if _.stdout:  # There is a remote!
+#         local_remote_path = Schema(Use(_standardized_validated_path)).validate(_.stdout)
+#     if local_remote_path != remote_path:  # They are different, ugh.
+#         raise b_e.BabyGitrBaseException(f"""Invalid Remote Error
+#         \nYou asked me to connect to {_remote_path}.
+#         \nWhen I tried to do that I coerced it to {remote_path}.
+#         \nThis is the current remote of the local project: {_.stdout}
+#         \nThis is what that was coerced to {local_remote_path}
+#         """)
+    
+#     # At this point there is a 
+#     # This is a mapping of {'ref': 'commit hash'}
+#     # This breaks appropriately if we don't have access.
+#     remotes: Dict[str, str] = get_remotes(remote_path)
+#     #########################
+#     # Testing Remote Branch #
+#     #########################
+#     # Does the branch we want exist in the remote?
+#     remote_branch_exists = f'refs/heads/{branch}' in remotes.values()
+#     #############################
+#     # Investigating Local Files #
+#     #############################
+#     # Are there local files?
+#     if os.path.exists(local_path):  # Yep!
+#         # Is there a repo there?
+#         locals = get_remotes(local_path, allow_failure=True)
+#         if locals != {}:  # A repo exists at this location.
+#             # If a repo exists here we want to make sure that our
+#             #  local work, and the remote work, have an overlapping
+#             #  set of branches. The local refs on the remote should
+#             #  match the remote refs on the local.
+#             remote_local_refs = {_.replace('refs/heads', '') for _ in remotes.keys() if _.startswith('refs/heads')}
+#             local_remote_refs = {_.replace('refs/remotes/origin', '') for _ in locals.keys() if _.startswith('refs/remotes/origin')}
+#             local_branch_exists = (branch in local_remote_refs)
+#             IF LOCAL DNE: MAKE BRANCH FROM... MAIN? BLANK HEAD?
+#         else:  # No, these files are not a git project.
+#             # 
+#     else:  # Nope!
+#         straightgitclone
+#     # At this point it is a folder that exists. If there's already a repo.
+#     # TODO: This one prevents a re-clone.d\
+#     # The only case here is *if this is already a clone it will have remotes*.
+#     # This validates the repo exists and can be connected to.
+#     # This makes the folder if it doesn't exist.
+#     # This clones down a git project.
+#     # This checks the branch out if it exists, else it creates it once cloned.
+#     # What are the cases?
+#     # Branch can be accessed.
+#     # Branch cannot be accessed.
+#     # if stdout == 'FAILURE':  # Branch cannot exist.
+#     #     raise b_e.BabyGitrConnectionError(f"""
 
-#     This is an example showcasing how to use with a 'local remote'
-#     >>> with TemporaryDirectory() as t:
-#     ...     remote_repo = init_repo(f'{t}/remote/.git', branch='test')
-#     ...     local_repo = init_repo(
-#     ...         local_path=f'{t}/local/.git',
-#     ...         remote_path=f'{t}/remote/.git',
-#     ...         branch='main',
-#     ...     )
-#     """
-#     if remote_path is not None:
-#         # Down this leg we have a remote to test.
-#         # 1. Does this remote exist? If no explode.
-#         # 2. Is there already stuff at the repo local location? If yes:
-#         # 2.a. Is it the remote that you asked me to clone? Yes whatevs no explode.
-#         ############################
-#         # Testing Remote Existence #
-#         ############################
-#         # Derive a validated remote path. This is guaranteed to exist as a git project.
-#         remote_path = Schema(Use(_standardized_validated_path)).validate(remote_path)
-#         # Now list the remotes there.
-#         remotes = _get_remotes(remote_path)
-#         # And unpack the standard out.
-#         # This is a list of tuples of (hash, str)
-#         # We'll be reusing this.
-        
-#         #############################
-#         # Investigating Local Files #
-#         #############################
-#         # Are there local files?
-#         # if os.path.exists(local_path):  # Yep!
-#         #     # Is there a repo there?
-#         #     locals = _get_remotes(local_path, allow_failure=True)
-#         #     if locals != "FAILURE":  # A repo exists at this location.
-#         #         # If a repo exists here we want to make sure that our
-#         #         #  local work, and the remote work, have an overlapping
-#         #         #  set of branches.
-#         #         repo_exists
-#         #     else:  # No, these files are not a git project.
-#         #         # 
-#         # else:  # Nope!
-#         #     straightgitclone
-#         # At this point it is a folder that exists. If there's already a repo.
-#         # TODO: This one prevents a re-clone.d\
-#         # The only case here is *if this is already a clone it will have remotes*.
-#         # This validates the repo exists and can be connected to.
-#         # This makes the folder if it doesn't exist.
-#         # This clones down a git project.
-#         # This checks the branch out if it exists, else it creates it once cloned.
-#         # What are the cases?
-#         # Branch can be accessed.
-#         # Branch cannot be accessed.
-#         # if stdout == 'FAILURE':  # Branch cannot exist.
-#         #     raise b_e.BabyGitrConnectionError(f"""
+#     #     I could not list remotes at this url.
+#     #     I might not be able to see it, it might not be a git repo.
+#     #     Maybe something else?
+#     #     Dunno man, you should send this to the developers if you think it's important.
 
-#         #     I could not list remotes at this url.
-#         #     I might not be able to see it, it might not be a git repo.
-#         #     Maybe something else?
-#         #     Dunno man, you should send this to the developers if you think it's important.
-
-#         #     URL: {remote_path}
-#         #     """)
-#         # elif f'refs/heads/{branch}' in stdout:  # Branch exists
-#         #     log_msg = """Your remote project exists and my managed branch already exists.
-#         #     I will just clone that."""
-#         #     logger.info(log_msg)
-#         #     _ = subprocess.run(
-#         #         [f"git clone {remote_path} --branch {branch} {local_path}"], shell=True, check=True, capture_output=True
-#         #     )
-#         # else:  # Branch does not exist.
-#         #     log_msg = """Your remote project exists but my managed branch does not exist.
-#         #     I will clone and commit my branch."""
-#         #     _ = subprocess.run(
-#         #         [f"git clone {remote_path} {local_path}"], shell=True, check=True, capture_output=True
-#         #     )
-#         # logger.info('Done')
-#         raise Exception(f"What does this look like? {_}")
-#         logger.info(f"Connected to remote: {remote_path}")
-#     else:
-#         # Down this leg we have no remote, so we just make
-#         #   a blank project.
-#         logger.warn("No remote assigned. I'll still babysit your work!")
-#     # Then make a new repo, or not! This works the same either way.
-#     new_repo(
-#         local_path=local_path,
-#         change_globs=change_globs,
-#         author_string=author_string,
-#         default_branch=default_branch,
-#     )
-#     return True
+#     #     URL: {remote_path}
+#     #     """)
+#     # elif f'refs/heads/{branch}' in stdout:  # Branch exists
+#     #     log_msg = """Your remote project exists and my managed branch already exists.
+#     #     I will just clone that."""
+#     #     logger.info(log_msg)
+#     #     _ = subprocess.run(
+#     #         [f"git clone {remote_path} --branch {branch} {local_path}"], shell=True, check=True, capture_output=True
+#     #     )
+#     # else:  # Branch does not exist.
+#     #     log_msg = """Your remote project exists but my managed branch does not exist.
+#     #     I will clone and commit my branch."""
+#     #     _ = subprocess.run(
+#     #         [f"git clone {remote_path} {local_path}"], shell=True, check=True, capture_output=True
+#     #     )
+#     # logger.info('Done')
+#     raise Exception(f"What does this look like? {_}")
+#     logger.info(f"Connected to remote: {remote_path}")
+# else:
+#     # Down this leg we have no remote, so we just make
+#     #   a blank project.
+#     logger.warn("No remote assigned. I'll still babysit your work!")
+    # Then make a new repo, or not! This works the same either way.
+    
+    return True
 
 
 # def set_remote(
